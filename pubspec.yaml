@@ -1,0 +1,44 @@
+name: mitra_assistant
+description: "AI-Powered Meeting Assistant Overlay App"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  
+  # State Management
+  flutter_riverpod: ^2.6.1
+  
+  # Window Overlay & Hotkeys
+  window_manager: ^0.5.1
+  hotkey_manager: ^0.2.3
+  
+  # Networking & Real-time WebSockets
+  web_socket_channel: ^3.0.2
+  dio: ^5.8.0
+  
+  # Live Transcription
+  deepgram_speech_to_text: ^4.0.1
+  
+  # AI Context Engine
+  google_generative_ai: ^0.4.6
+  
+  # Local Storage & Utilities
+  shared_preferences: ^2.5.3
+  uuid: ^4.5.1
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
