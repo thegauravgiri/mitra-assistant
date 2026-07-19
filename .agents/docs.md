@@ -55,6 +55,7 @@ An agent must consider any of the following occurrences as a **Major Change** re
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](../README.md) using the following checklist:
 =======
 When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/README.md) using the following checklist:
@@ -62,6 +63,9 @@ When a major change is made, the agent **MUST** perform a section-by-section aud
 =======
 When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](../README.md) using the following checklist:
 >>>>>>> 032322b (agent: setup antigravity and claude collaboration)
+=======
+When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](../README.md) using the following checklist:
+>>>>>>> 032322b153bab131210054e25480d3271f0a296f
 
 | Section in `README.md` | Audit & Update Actions |
 | :--- | :--- |
@@ -104,6 +108,7 @@ Agents should follow this step-by-step workflow during any task involving major 
 - **Clear Markdown Formatting**: Use structured headings, GitHub alerts (`[!NOTE]`, `[!IMPORTANT]`), concise bullet points, and syntax-highlighted code blocks.
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 - **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](design.md)).
 =======
 - **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/.agents/design.md)).
@@ -111,4 +116,7 @@ Agents should follow this step-by-step workflow during any task involving major 
 =======
 - **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](design.md)).
 >>>>>>> 032322b (agent: setup antigravity and claude collaboration)
+=======
+- **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](design.md)).
+>>>>>>> 032322b153bab131210054e25480d3271f0a296f
 - **Concise Summaries**: Avoid fluff; focus on technical clarity, setup accuracy, and developer ergonomics.

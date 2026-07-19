@@ -27,8 +27,11 @@ flutter build macos             # release build
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> 032322b (agent: setup antigravity and claude collaboration)
+=======
+>>>>>>> 032322b153bab131210054e25480d3271f0a296f
 ## Agent Workflow & Shared Artifacts Directory (`.docs/`)
 
 The repository uses a dual-engine architecture:
@@ -42,6 +45,9 @@ Both models share artifacts via the **[.docs/](.docs/README.md)** directory:
 
 ### Subagents (Claude Code & Antigravity)
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 032322b153bab131210054e25480d3271f0a296f
 
 Project-specific subagents configured in `.claude/agents/`:
 
@@ -49,6 +55,7 @@ Project-specific subagents configured in `.claude/agents/`:
 2. **Implementation Agent** (`.claude/agents/implementation.md`): Uses **Gemini (Antigravity)**. Responsible for feature development, Flutter/Dart & Swift MethodChannel code authoring, bug fixes, running test suites, and writing `.docs/walkthrough.md`.
 3. **Testing Agent** (`.claude/agents/testing.md`): Uses **Haiku / Gemini**. Responsible for executing test suites (`flutter test`), static analysis (`flutter analyze`), and unit/widget test authoring.
 4. **Document Agent** (`.claude/agents/document.md`): Uses **Haiku / Gemini**. Responsible for documentation synchronization (`README.md`, `CLAUDE.md`, `.agents/docs.md`, `.docs/README.md`).
+<<<<<<< HEAD
 =======
 ## Subagents (Claude Code)
 
@@ -68,6 +75,8 @@ Project-specific subagents configured in `.claude/agents/`:
 3. **Testing Agent** (`.claude/agents/testing.md`): Uses **Haiku / Gemini**. Responsible for executing test suites (`flutter test`), static analysis (`flutter analyze`), and unit/widget test authoring.
 4. **Document Agent** (`.claude/agents/document.md`): Uses **Haiku / Gemini**. Responsible for documentation synchronization (`README.md`, `CLAUDE.md`, `.agents/docs.md`, `.docs/README.md`).
 >>>>>>> 032322b (agent: setup antigravity and claude collaboration)
+=======
+>>>>>>> 032322b153bab131210054e25480d3271f0a296f
 
 ## Architecture
 
