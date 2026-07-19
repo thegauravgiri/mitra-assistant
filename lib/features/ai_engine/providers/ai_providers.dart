@@ -10,11 +10,7 @@ class AiState {
   final bool isAnalyzing;
   final String? error;
 
-  AiState({
-    required this.insights,
-    this.isAnalyzing = false,
-    this.error,
-  });
+  AiState({required this.insights, this.isAnalyzing = false, this.error});
 
   AiState copyWith({
     List<Insight>? insights,
@@ -54,25 +50,32 @@ class AiNotifier extends StateNotifier<AiState> {
     if (apiKey.trim().isEmpty) {
       state = state.copyWith(
         isAnalyzing: false,
-        error: 'Gemini API key missing in Settings. Please add your Gemini API Key.',
+        error:
+            'Gemini API key missing in Settings. Please add your Gemini API Key.',
       );
       return;
     }
 
     final transcriptState = _ref.read(transcriptionNotifierProvider);
-    final fullText = transcriptState.fullTextTranscript;
+    final fullText = transcriptState.fullTextTranscript.trim();
 
-    if (fullText.trim().isEmpty) {
+    // Do NOT send to Gemini if there is no transcript captured
+    if (fullText.isEmpty) {
       if (force) {
         state = state.copyWith(
           isAnalyzing: false,
-          error: 'No transcript captured yet. Start a meeting or speak into the microphone.',
+          error:
+              'No transcript captured yet. Start a meeting or speak into the microphone.',
         );
+      } else {
+        state = state.copyWith(isAnalyzing: false);
       }
       return;
     }
 
+    // Do NOT send to Gemini if there is no NEW transcript since last analysis
     if (!force && fullText == _lastAnalyzedTranscript) {
+      state = state.copyWith(isAnalyzing: false);
       return;
     }
 
@@ -80,14 +83,26 @@ class AiNotifier extends StateNotifier<AiState> {
     state = state.copyWith(isAnalyzing: true, error: null);
 
     try {
+      final existingTitles = state.insights.map((i) => i.title).toList();
       final newInsights = await _geminiService.analyzeTranscript(
         apiKey: apiKey,
         transcript: fullText,
+        existingInsightTitles: existingTitles,
       );
 
-      if (newInsights.isNotEmpty) {
-        final updatedList = List<Insight>.from(newInsights)..addAll(state.insights);
-        state = state.copyWith(insights: updatedList, isAnalyzing: false, error: null);
+      // Client-side deduplication fallback
+      final uniqueInsights = newInsights
+          .where((candidate) => !_isDuplicate(candidate, state.insights))
+          .toList();
+
+      if (uniqueInsights.isNotEmpty) {
+        final updatedList = List<Insight>.from(uniqueInsights)
+          ..addAll(state.insights);
+        state = state.copyWith(
+          insights: updatedList,
+          isAnalyzing: false,
+          error: null,
+        );
       } else {
         state = state.copyWith(isAnalyzing: false, error: null);
       }
@@ -97,6 +112,39 @@ class AiNotifier extends StateNotifier<AiState> {
     }
   }
 
+  bool _isDuplicate(Insight candidate, List<Insight> existingInsights) {
+    final candidateTitleNorm = _normalize(candidate.title);
+    final candidateDescNorm = _normalize(candidate.description);
+
+    for (final existing in existingInsights) {
+      final existingTitleNorm = _normalize(existing.title);
+      final existingDescNorm = _normalize(existing.description);
+
+      // Check title identity or substring overlap for longer titles
+      if (candidateTitleNorm == existingTitleNorm ||
+          (candidateTitleNorm.length > 5 &&
+              existingTitleNorm.contains(candidateTitleNorm)) ||
+          (existingTitleNorm.length > 5 &&
+              candidateTitleNorm.contains(existingTitleNorm))) {
+        return true;
+      }
+
+      // Check description similarity when titles differ slightly
+      if (candidateDescNorm.length > 10 && existingDescNorm.length > 10) {
+        if (candidateDescNorm == existingDescNorm ||
+            candidateDescNorm.contains(existingDescNorm) ||
+            existingDescNorm.contains(candidateDescNorm)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  String _normalize(String input) {
+    return input.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();
+  }
+
   Future<void> askQuestion(String question) async {
     if (question.trim().isEmpty) return;
 
@@ -104,7 +152,8 @@ class AiNotifier extends StateNotifier<AiState> {
     if (apiKey.trim().isEmpty) {
       state = state.copyWith(
         isAnalyzing: false,
-        error: 'Gemini API key missing in Settings. Please add your Gemini API Key.',
+        error:
+            'Gemini API key missing in Settings. Please add your Gemini API Key.',
       );
       return;
     }
@@ -122,8 +171,13 @@ class AiNotifier extends StateNotifier<AiState> {
       );
 
       if (newInsights.isNotEmpty) {
-        final updatedList = List<Insight>.from(newInsights)..addAll(state.insights);
-        state = state.copyWith(insights: updatedList, isAnalyzing: false, error: null);
+        final updatedList = List<Insight>.from(newInsights)
+          ..addAll(state.insights);
+        state = state.copyWith(
+          insights: updatedList,
+          isAnalyzing: false,
+          error: null,
+        );
       } else {
         state = state.copyWith(isAnalyzing: false, error: null);
       }

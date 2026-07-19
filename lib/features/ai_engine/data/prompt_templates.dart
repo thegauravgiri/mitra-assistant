@@ -21,18 +21,34 @@ Categories:
 Keep your response extremely concise and focused. Respond ONLY with the JSON array.
 ''';
 
-  static String buildAnalysisPrompt(String recentTranscript) {
+  static String buildAnalysisPrompt(String recentTranscript, {List<String> existingInsights = const []}) {
+    final existingBlock = existingInsights.isEmpty
+        ? ''
+        : '''
+
+Already Suggested Insights (DO NOT repeat or paraphrase any of these):
+${existingInsights.map((e) => '- $e').join('\n')}
+''';
+
     return '''
 Live Meeting Transcript:
 ---
 $recentTranscript
 ---
+$existingBlock
+Analyze the conversation above and generate 1-3 fresh contextual insights/talking points for the user.
 
-Analyze the conversation above and generate 2-4 fresh contextual insights/talking points for the user.
+CRITICAL DEDUPLICATION RULES:
+1. Do NOT repeat, rephrase, or suggest anything already listed under "Already Suggested Insights".
+2. If no new actionable topics, key points, or follow-up questions are present, return an empty JSON array [].
+3. Only output genuinely new, non-obvious, actionable insights.
 ''';
   }
 
-  static String buildQuestionPrompt(String recentTranscript, String userQuestion) {
+  static String buildQuestionPrompt(
+    String recentTranscript,
+    String userQuestion,
+  ) {
     return '''
 Live Meeting Context/Transcript:
 ---
@@ -47,4 +63,3 @@ Output a valid JSON array of insights with 1-2 items matching the exact JSON str
 ''';
   }
 }
-

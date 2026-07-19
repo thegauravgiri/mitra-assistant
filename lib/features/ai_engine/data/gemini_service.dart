@@ -28,7 +28,10 @@ class GeminiService {
     var text = rawText.trim();
     // Remove markdown code fence if present
     if (text.startsWith('```')) {
-      text = text.replaceAll(RegExp(r'^```(json)?\s*', caseSensitive: false), '');
+      text = text.replaceAll(
+        RegExp(r'^```(json)?\s*', caseSensitive: false),
+        '',
+      );
       text = text.replaceAll(RegExp(r'\s*```$'), '');
     }
     return text.trim();
@@ -43,7 +46,10 @@ class GeminiService {
       parsed = jsonDecode(cleanedText);
     } catch (_) {
       // Fallback: search for JSON array or object inside string
-      final match = RegExp(r'\[\s*\{.*\}\s*\]', dotAll: true).firstMatch(cleanedText);
+      final match = RegExp(
+        r'\[\s*\{.*\}\s*\]',
+        dotAll: true,
+      ).firstMatch(cleanedText);
       if (match != null) {
         try {
           parsed = jsonDecode(match.group(0)!);
@@ -85,13 +91,15 @@ class GeminiService {
             category = InsightCategory.suggestion;
         }
 
-        insights.add(Insight(
-          id: const Uuid().v4(),
-          category: category,
-          title: item['title'] as String? ?? 'Context Insight',
-          description: item['description'] as String? ?? '',
-          timestamp: DateTime.now(),
-        ));
+        insights.add(
+          Insight(
+            id: const Uuid().v4(),
+            category: category,
+            title: item['title'] as String? ?? 'Context Insight',
+            description: item['description'] as String? ?? '',
+            timestamp: DateTime.now(),
+          ),
+        );
       }
     }
 
@@ -101,6 +109,7 @@ class GeminiService {
   Future<List<Insight>> analyzeTranscript({
     required String apiKey,
     required String transcript,
+    List<String> existingInsightTitles = const [],
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Gemini API key missing in Settings');
@@ -110,7 +119,10 @@ class GeminiService {
     _initModel(apiKey.trim());
 
     try {
-      final prompt = PromptTemplates.buildAnalysisPrompt(transcript);
+      final prompt = PromptTemplates.buildAnalysisPrompt(
+        transcript,
+        existingInsights: existingInsightTitles,
+      );
       final response = await _model?.generateContent([Content.text(prompt)]);
       final text = response?.text;
 
@@ -120,10 +132,15 @@ class GeminiService {
     } catch (e) {
       AppLogger.error('Error during Gemini transcript analysis', e);
       final errStr = e.toString();
-      if (errStr.contains('API_KEY_INVALID') || errStr.toLowerCase().contains('api key')) {
-        throw Exception('Invalid Gemini API Key. Please check your key in Settings.');
+      if (errStr.contains('API_KEY_INVALID') ||
+          errStr.toLowerCase().contains('api key')) {
+        throw Exception(
+          'Invalid Gemini API Key. Please check your key in Settings.',
+        );
       }
-      throw Exception('Gemini AI Error: ${errStr.replaceAll('Exception: ', '')}');
+      throw Exception(
+        'Gemini AI Error: ${errStr.replaceAll('Exception: ', '')}',
+      );
     }
   }
 
@@ -149,7 +166,9 @@ class GeminiService {
       return _parseInsightsJson(text);
     } catch (e) {
       AppLogger.error('Error during Gemini user question query', e);
-      throw Exception('Gemini AI Error: ${e.toString().replaceAll('Exception: ', '')}');
+      throw Exception(
+        'Gemini AI Error: ${e.toString().replaceAll('Exception: ', '')}',
+      );
     }
   }
 }

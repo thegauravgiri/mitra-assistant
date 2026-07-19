@@ -33,12 +33,18 @@ class ControlBar extends ConsumerWidget {
         decoration: const BoxDecoration(
           color: AppTheme.cardBackground,
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          border: Border(bottom: BorderSide(color: AppTheme.borderSubtle, width: 1)),
+          border: Border(
+            bottom: BorderSide(color: AppTheme.borderSubtle, width: 1),
+          ),
         ),
         child: Row(
           children: [
             // Drag handle & App Icon
-            const Icon(Icons.drag_indicator_rounded, color: AppTheme.textMuted, size: 18),
+            const Icon(
+              Icons.drag_indicator_rounded,
+              color: AppTheme.textMuted,
+              size: 18,
+            ),
             const SizedBox(width: 6),
             const Text(
               'Mitra Assistant',
@@ -72,7 +78,11 @@ class ControlBar extends ConsumerWidget {
                     const SizedBox(width: 4),
                     Text(
                       'REC ${(audioState.audioLevel * 100).toInt()}%',
-                      style: const TextStyle(fontSize: 9, color: AppTheme.secondaryAccent, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 9,
+                        color: AppTheme.secondaryAccent,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ],
                 ),
@@ -83,29 +93,50 @@ class ControlBar extends ConsumerWidget {
             // Meeting Start / Stop Button
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: audioState.isRecording ? AppTheme.panicAccent : AppTheme.primaryAccent,
+                backgroundColor: audioState.isRecording
+                    ? AppTheme.panicAccent
+                    : AppTheme.primaryAccent,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              icon: Icon(audioState.isRecording ? Icons.stop_rounded : Icons.play_arrow_rounded, size: 14),
+              icon: Icon(
+                audioState.isRecording
+                    ? Icons.stop_rounded
+                    : Icons.play_arrow_rounded,
+                size: 14,
+              ),
               label: Text(
                 audioState.isRecording ? 'Stop' : 'Start Meeting',
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               onPressed: () async {
                 if (audioState.isRecording) {
                   ref.read(aiNotifierProvider.notifier).stopPeriodicAnalysis();
-                  await ref.read(transcriptionNotifierProvider.notifier).stopTranscription();
-                  await ref.read(audioNotifierProvider.notifier).stopRecording();
+                  await ref
+                      .read(transcriptionNotifierProvider.notifier)
+                      .stopTranscription();
+                  await ref
+                      .read(audioNotifierProvider.notifier)
+                      .stopRecording();
                 } else {
                   final settings = ref.read(settingsNotifierProvider);
                   if (settings.deepgramApiKey.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Please enter your Deepgram API Key in Settings to enable transcription.'),
+                        content: Text(
+                          'Please enter your Deepgram API Key in Settings to enable transcription.',
+                        ),
                         backgroundColor: AppTheme.warningAccent,
                         duration: Duration(seconds: 3),
                       ),
@@ -114,20 +145,26 @@ class ControlBar extends ConsumerWidget {
                     return;
                   }
 
-                  final started = await ref.read(audioNotifierProvider.notifier).startRecording();
+                  final started = await ref
+                      .read(audioNotifierProvider.notifier)
+                      .startRecording();
                   if (!started) {
                     final audioState = ref.read(audioNotifierProvider);
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text(audioState.error ?? 'Microphone permission denied.'),
+                          content: Text(
+                            audioState.error ?? 'Microphone permission denied.',
+                          ),
                           backgroundColor: AppTheme.warningAccent,
                           duration: const Duration(seconds: 5),
                           action: SnackBarAction(
                             label: 'Open Settings',
                             textColor: Colors.white,
                             onPressed: () {
-                              ref.read(audioNotifierProvider.notifier).openMicrophoneSettings();
+                              ref
+                                  .read(audioNotifierProvider.notifier)
+                                  .openMicrophoneSettings();
                             },
                           ),
                         ),
@@ -135,7 +172,9 @@ class ControlBar extends ConsumerWidget {
                     }
                     return;
                   }
-                  await ref.read(transcriptionNotifierProvider.notifier).startTranscription();
+                  await ref
+                      .read(transcriptionNotifierProvider.notifier)
+                      .startTranscription();
                   ref.read(aiNotifierProvider.notifier).startPeriodicAnalysis();
                 }
               },
@@ -145,7 +184,11 @@ class ControlBar extends ConsumerWidget {
 
             // Panic Hide Button
             IconButton(
-              icon: const Icon(Icons.visibility_off_outlined, size: 16, color: AppTheme.warningAccent),
+              icon: const Icon(
+                Icons.visibility_off_outlined,
+                size: 16,
+                color: AppTheme.warningAccent,
+              ),
               tooltip: 'Panic Hide (⌘+Shift+H)',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -158,7 +201,13 @@ class ControlBar extends ConsumerWidget {
 
             // Minimize / Compact Mode Toggle
             IconButton(
-              icon: Icon(isCompact ? Icons.unfold_more_rounded : Icons.unfold_less_rounded, size: 16, color: AppTheme.textSecondary),
+              icon: Icon(
+                isCompact
+                    ? Icons.unfold_more_rounded
+                    : Icons.unfold_less_rounded,
+                size: 16,
+                color: AppTheme.textSecondary,
+              ),
               tooltip: isCompact ? 'Expand Panel' : 'Compact Pill',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),

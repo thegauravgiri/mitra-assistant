@@ -50,7 +50,14 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('API Credentials', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+          const Text(
+            'API Credentials',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: _deepgramController,
@@ -58,14 +65,25 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
             decoration: InputDecoration(
               labelText: 'Deepgram API Key (Transcription)',
-              labelStyle: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
               filled: true,
               fillColor: AppTheme.cardBackground,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppTheme.borderSubtle),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppTheme.borderSubtle),
+              ),
             ),
             onChanged: (val) {
-              ref.read(settingsNotifierProvider.notifier).updateDeepgramApiKey(val);
+              ref
+                  .read(settingsNotifierProvider.notifier)
+                  .updateDeepgramApiKey(val);
             },
           ),
           const SizedBox(height: 12),
@@ -75,29 +93,58 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
             decoration: InputDecoration(
               labelText: 'Gemini API Key (AI Context)',
-              labelStyle: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              labelStyle: const TextStyle(
+                fontSize: 12,
+                color: AppTheme.textSecondary,
+              ),
               filled: true,
               fillColor: AppTheme.cardBackground,
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppTheme.borderSubtle)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppTheme.borderSubtle),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppTheme.borderSubtle),
+              ),
             ),
             onChanged: (val) {
-              ref.read(settingsNotifierProvider.notifier).updateGeminiApiKey(val);
+              ref
+                  .read(settingsNotifierProvider.notifier)
+                  .updateGeminiApiKey(val);
             },
           ),
           const SizedBox(height: 20),
-          const Text('Audio Sources', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+          const Text(
+            'Audio Sources',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 8),
 
           // Microphone Input Device Dropdown
           Row(
             children: [
-              const Icon(Icons.mic_rounded, size: 16, color: AppTheme.primaryAccent),
+              const Icon(
+                Icons.mic_rounded,
+                size: 16,
+                color: AppTheme.primaryAccent,
+              ),
               const SizedBox(width: 8),
-              const Text('Input Mic:', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+              const Text(
+                'Input Mic:',
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.refresh_rounded, size: 14, color: AppTheme.textMuted),
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                  size: 14,
+                  color: AppTheme.textMuted,
+                ),
                 tooltip: 'Refresh Audio Devices',
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -118,12 +165,23 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 isExpanded: true,
-                value: audioState.availableDevices.any((d) => d.id == audioState.selectedDeviceId)
+                value:
+                    audioState.availableDevices.any(
+                      (d) => d.id == audioState.selectedDeviceId,
+                    )
                     ? audioState.selectedDeviceId
-                    : (audioState.availableDevices.isNotEmpty ? audioState.availableDevices.first.id : null),
-                hint: const Text('Default System Microphone', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                    : (audioState.availableDevices.isNotEmpty
+                          ? audioState.availableDevices.first.id
+                          : null),
+                hint: const Text(
+                  'Default System Microphone',
+                  style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                ),
                 dropdownColor: AppTheme.cardBackground,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textPrimary,
+                ),
                 items: audioState.availableDevices.map((device) {
                   return DropdownMenuItem<String>(
                     value: device.id,
@@ -136,7 +194,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 onChanged: (val) {
                   if (val != null) {
                     ref.read(audioNotifierProvider.notifier).selectDevice(val);
-                    ref.read(settingsNotifierProvider.notifier).updateSelectedAudioDevice(val);
+                    ref
+                        .read(settingsNotifierProvider.notifier)
+                        .updateSelectedAudioDevice(val);
                   }
                 },
               ),
@@ -148,20 +208,35 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           Material(
             color: Colors.transparent,
             child: SwitchListTile(
-              title: const Text('Capture System Audio', style: TextStyle(fontSize: 13, color: AppTheme.textPrimary)),
-              subtitle: const Text('Transcribes speaker audio from meetings (ScreenCaptureKit)', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+              title: const Text(
+                'Capture System Audio',
+                style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+              ),
+              subtitle: const Text(
+                'Transcribes speaker audio from meetings (ScreenCaptureKit)',
+                style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+              ),
               value: audioState.captureSystemAudio,
               activeTrackColor: AppTheme.primaryAccent,
               contentPadding: EdgeInsets.zero,
               onChanged: (val) {
                 ref.read(audioNotifierProvider.notifier).toggleSystemAudio(val);
-                ref.read(settingsNotifierProvider.notifier).updateCaptureSystemAudio(val);
+                ref
+                    .read(settingsNotifierProvider.notifier)
+                    .updateCaptureSystemAudio(val);
               },
             ),
           ),
 
           const SizedBox(height: 16),
-          const Text('AI Copilot Frequency', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+          const Text(
+            'AI Copilot Frequency',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             'Interval: ${settings.analysisIntervalSec} seconds',
@@ -174,15 +249,23 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
             divisions: 5,
             activeColor: AppTheme.primaryAccent,
             onChanged: (val) {
-              ref.read(settingsNotifierProvider.notifier).updateAnalysisIntervalSec(val.toInt());
+              ref
+                  .read(settingsNotifierProvider.notifier)
+                  .updateAnalysisIntervalSec(val.toInt());
             },
           ),
           const SizedBox(height: 16),
           Material(
             color: Colors.transparent,
             child: SwitchListTile(
-              title: const Text('Screen-Share Protection', style: TextStyle(fontSize: 13, color: AppTheme.textPrimary)),
-              subtitle: const Text('Hides overlay window during screen share (NSWindow sharingType)', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+              title: const Text(
+                'Screen-Share Protection',
+                style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
+              ),
+              subtitle: const Text(
+                'Hides overlay window during screen share (NSWindow sharingType)',
+                style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+              ),
               value: _screenProtectionEnabled,
               activeTrackColor: AppTheme.primaryAccent,
               contentPadding: EdgeInsets.zero,
@@ -201,11 +284,24 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           const SizedBox(height: 16),
           const Divider(color: AppTheme.borderSubtle),
           const SizedBox(height: 8),
-          const Text('Global Shortcuts', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 13)),
+          const Text(
+            'Global Shortcuts',
+            style: TextStyle(
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
           const SizedBox(height: 8),
-          _ShortcutRow(shortcut: '⌘ + Shift + H', description: 'Panic Hide (Instant conceal)'),
+          _ShortcutRow(
+            shortcut: '⌘ + Shift + H',
+            description: 'Panic Hide (Instant conceal)',
+          ),
           const SizedBox(height: 6),
-          _ShortcutRow(shortcut: '⌘ + Shift + M', description: 'Toggle Overlay Window'),
+          _ShortcutRow(
+            shortcut: '⌘ + Shift + M',
+            description: 'Toggle Overlay Window',
+          ),
         ],
       ),
     );
@@ -229,10 +325,23 @@ class _ShortcutRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(6),
             border: Border.all(color: AppTheme.borderSubtle),
           ),
-          child: Text(shortcut, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryAccent, fontFamily: 'monospace')),
+          child: Text(
+            shortcut,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryAccent,
+              fontFamily: 'monospace',
+            ),
+          ),
         ),
         const SizedBox(width: 10),
-        Expanded(child: Text(description, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary))),
+        Expanded(
+          child: Text(
+            description,
+            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          ),
+        ),
       ],
     );
   }
