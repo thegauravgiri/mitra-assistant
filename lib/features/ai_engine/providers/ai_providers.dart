@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/text_similarity.dart';
+import '../../documents/data/document_relevance_service.dart';
+import '../../documents/providers/document_providers.dart';
 import '../data/gemini_service.dart';
 import '../domain/models/insight.dart';
 import '../../transcription/providers/transcription_providers.dart';
@@ -28,17 +31,13 @@ class AiState {
 class AiNotifier extends StateNotifier<AiState> {
   final Ref _ref;
   final GeminiService _geminiService = GeminiService();
+  final DocumentRelevanceService _relevanceService = DocumentRelevanceService();
   Timer? _analysisTimer;
   String _lastAnalyzedTranscript = '';
+  String _lastActiveDocSignature = '';
 
   static const int _maxInsightsCount = 20;
   static const int _maxTranscriptCharLength = 3000;
-
-  static const Set<String> _stopWords = {
-    'the', 'a', 'an', 'and', 'to', 'in', 'of', 'for', 'with', 'on', 'at',
-    'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'should', 'could',
-    'would', 'that', 'this', 'it', 'as', 'or', 'we', 'you', 'i', 'our', 'your',
-  };
 
   AiNotifier(this._ref) : super(AiState(insights: []));
 
@@ -67,14 +66,27 @@ class AiNotifier extends StateNotifier<AiState> {
 
     final transcriptState = _ref.read(transcriptionNotifierProvider);
     final fullText = transcriptState.fullTextTranscript.trim();
+    final documentState = _ref.read(documentNotifierProvider);
 
-    // Do NOT send to Gemini if there is no transcript captured
-    if (fullText.isEmpty) {
+    // Compute sliding window transcript portion
+    String transcriptSlice = fullText;
+    if (fullText.length > _maxTranscriptCharLength) {
+      transcriptSlice = fullText.substring(fullText.length - _maxTranscriptCharLength);
+    }
+
+    // Evaluate relevant document context
+    final relevanceResult = _relevanceService.getRelevantContext(
+      transcriptWindow: transcriptSlice,
+      documents: documentState.documents,
+    );
+
+    // Do NOT send to Gemini if no transcript and no relevant documents
+    if (fullText.isEmpty && !relevanceResult.hasContext) {
       if (force) {
         state = state.copyWith(
           isAnalyzing: false,
           error:
-              'No transcript captured yet. Start a meeting or speak into the microphone.',
+              'No transcript or document context available yet.',
         );
       } else {
         state = state.copyWith(isAnalyzing: false);
@@ -82,20 +94,17 @@ class AiNotifier extends StateNotifier<AiState> {
       return;
     }
 
-    // Do NOT send to Gemini if there is no NEW transcript since last analysis
-    if (!force && fullText == _lastAnalyzedTranscript) {
+    // Do NOT send to Gemini if there is no NEW transcript or document state change since last analysis
+    if (!force &&
+        fullText == _lastAnalyzedTranscript &&
+        relevanceResult.activeSignature == _lastActiveDocSignature) {
       state = state.copyWith(isAnalyzing: false);
       return;
     }
 
     _lastAnalyzedTranscript = fullText;
+    _lastActiveDocSignature = relevanceResult.activeSignature;
     state = state.copyWith(isAnalyzing: true, error: null);
-
-    // Sliding window: slice recent portion of transcript if very long
-    String transcriptSlice = fullText;
-    if (fullText.length > _maxTranscriptCharLength) {
-      transcriptSlice = fullText.substring(fullText.length - _maxTranscriptCharLength);
-    }
 
     try {
       final existingTitles = state.insights.map((i) => i.title).take(15).toList();
@@ -103,6 +112,7 @@ class AiNotifier extends StateNotifier<AiState> {
         apiKey: apiKey,
         transcript: transcriptSlice,
         existingInsightTitles: existingTitles,
+        documentContext: relevanceResult.documentContext,
       );
 
       // Client-side multi-pass semantic deduplication fallback
@@ -134,15 +144,15 @@ class AiNotifier extends StateNotifier<AiState> {
   }
 
   bool _isDuplicate(Insight candidate, List<Insight> existingInsights) {
-    final candidateTitleNorm = _normalize(candidate.title);
-    final candidateDescNorm = _normalize(candidate.description);
+    final candidateTitleNorm = TextSimilarity.normalize(candidate.title);
+    final candidateDescNorm = TextSimilarity.normalize(candidate.description);
 
-    final candidateTitleTokens = _tokenize(candidate.title);
-    final candidateDescTokens = _tokenize(candidate.description);
+    final candidateTitleTokens = TextSimilarity.tokenize(candidate.title);
+    final candidateDescTokens = TextSimilarity.tokenize(candidate.description);
 
     for (final existing in existingInsights) {
-      final existingTitleNorm = _normalize(existing.title);
-      final existingDescNorm = _normalize(existing.description);
+      final existingTitleNorm = TextSimilarity.normalize(existing.title);
+      final existingDescNorm = TextSimilarity.normalize(existing.description);
 
       // 1. Direct equality or substring containment check for titles
       if (candidateTitleNorm == existingTitleNorm ||
@@ -163,39 +173,21 @@ class AiNotifier extends StateNotifier<AiState> {
       }
 
       // 3. Jaccard Token Overlap Similarity check
-      final existingTitleTokens = _tokenize(existing.title);
-      final titleSim = _calculateJaccardSimilarity(candidateTitleTokens, existingTitleTokens);
+      final existingTitleTokens = TextSimilarity.tokenize(existing.title);
+      final titleSim = TextSimilarity.calculateJaccardSimilarity(
+          candidateTitleTokens, existingTitleTokens);
       if (titleSim >= 0.45) {
         return true;
       }
 
-      final existingDescTokens = _tokenize(existing.description);
-      final descSim = _calculateJaccardSimilarity(candidateDescTokens, existingDescTokens);
+      final existingDescTokens = TextSimilarity.tokenize(existing.description);
+      final descSim = TextSimilarity.calculateJaccardSimilarity(
+          candidateDescTokens, existingDescTokens);
       if (descSim >= 0.45) {
         return true;
       }
     }
     return false;
-  }
-
-  Set<String> _tokenize(String text) {
-    final normalized = _normalize(text);
-    return normalized
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty && !_stopWords.contains(word))
-        .toSet();
-  }
-
-  double _calculateJaccardSimilarity(Set<String> setA, Set<String> setB) {
-    if (setA.isEmpty || setB.isEmpty) return 0.0;
-    final intersection = setA.intersection(setB).length;
-    final union = setA.union(setB).length;
-    if (union == 0) return 0.0;
-    return intersection / union;
-  }
-
-  String _normalize(String input) {
-    return input.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').trim();
   }
 
   Future<void> askQuestion(String question) async {
@@ -213,6 +205,13 @@ class AiNotifier extends StateNotifier<AiState> {
 
     final transcriptState = _ref.read(transcriptionNotifierProvider);
     final fullText = transcriptState.fullTextTranscript;
+    final documentState = _ref.read(documentNotifierProvider);
+
+    final relevanceResult = _relevanceService.getRelevantContext(
+      transcriptWindow: fullText,
+      questionText: question,
+      documents: documentState.documents,
+    );
 
     state = state.copyWith(isAnalyzing: true, error: null);
 
@@ -221,6 +220,7 @@ class AiNotifier extends StateNotifier<AiState> {
         apiKey: apiKey,
         transcript: fullText,
         question: question,
+        documentContext: relevanceResult.documentContext,
       );
 
       final uniqueInsights = newInsights
@@ -256,6 +256,7 @@ class AiNotifier extends StateNotifier<AiState> {
 
   void clearInsights() {
     _lastAnalyzedTranscript = '';
+    _lastActiveDocSignature = '';
     state = AiState(insights: [], error: null);
   }
 
