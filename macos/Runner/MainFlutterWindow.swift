@@ -16,8 +16,8 @@ class MainFlutterWindow: NSWindow {
     // Set level to floating overlay (always on top)
     self.level = .floating
     
-    // Use readWrite sharingType so window is properly composited and rendered on screen
-    self.sharingType = .readWrite
+    // Prevent window from being captured in screen shares (e.g. Google Meet, Zoom)
+    self.sharingType = .none
 
     // Allow overlay to join all desktop spaces
     self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]

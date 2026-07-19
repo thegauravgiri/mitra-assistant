@@ -1,0 +1,88 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+Mitra Assistant is a Flutter **macOS desktop overlay** app: an always-on-top, frameless
+window that captures meeting/system audio, live-transcribes it (Deepgram), and periodically
+feeds the rolling transcript to Gemini to surface real-time insights (key points, questions,
+action items, suggestions) during a call. It has a "panic hide" hotkey and can make itself
+invisible to screen-sharing/recording — this is a stealth-overlay use case, not a typical CRUD app.
+
+Android/iOS/Linux/Windows platform folders exist only as Flutter scaffolding; `window_manager`
+and `hotkey_manager` are desktop-only, so **macOS is the only platform actually implemented**
+(see `macos/Runner/Services/`).
+
+## Commands
+
+```bash
+flutter pub get                 # install dependencies
+flutter run -d macos            # run the app (this is THE way to manually test it)
+flutter analyze                 # static analysis (flutter_lints + analysis_options.yaml)
+flutter test                    # run all tests in test/
+flutter test test/unit_test.dart -n "Insight category"   # run a single test/group by name
+flutter build macos             # release build
+```
+
+There is no CI config, no formatter override beyond `dart format` defaults, and no
+`.cursorrules`/Copilot instructions in this repo.
+
+## Architecture
+
+### Feature-first layering
+
+Code under `lib/features/<feature>/` is split into:
+- `data/` — services: platform-channel wrappers, HTTP/WebSocket clients, `SharedPreferences` repos
+- `domain/models/` — plain Dart model classes (immutable, `copyWith`)
+- `providers/` — Riverpod `StateNotifier` + state class + `StateNotifierProvider`
+- `presentation/` — widgets, read state via `ref.watch(xNotifierProvider)`
+
+`lib/core/` holds cross-cutting pieces: `constants/app_constants.dart` (pref keys, platform
+channel names, defaults), `theme/`, `utils/logger.dart` (`AppLogger`, debug-only).
+
+Features: `audio`, `transcription`, `ai_engine`, `overlay`, `settings`. Follow this exact
+structure for any new feature rather than introducing a different layout.
+
+### State management convention
+
+Every feature owns one `StateNotifier<XState>` + one immutable `XState` (with `copyWith`) +
+one top-level `xNotifierProvider`. Notifiers reach across features via `ref.read(...)`
+(e.g. `AiNotifier` reads `settingsNotifierProvider` and `transcriptionNotifierProvider` to pull
+the current transcript/API keys) — there's no separate "use case" layer. Services
+(`GeminiService`, `DeepgramService`, `AudioCaptureService`) are plain classes instantiated by
+the notifier, not injected via Riverpod providers themselves (except `AudioCaptureService`,
+which is a singleton via `.instance`).
+
+### Native bridge (macOS)
+
+Audio capture and window control are NOT implemented in Dart — they're MethodChannel/EventChannel
+calls into Swift code in `macos/Runner/Services/`:
+- `AudioCaptureService.swift` — mic + system audio capture, device enumeration, permissions
+- `WindowControlService.swift` — screen-capture visibility (`setSharingTypeNone`/`ReadWrite`),
+  panic hide
+
+Channel names are the single source of truth in `AppConstants` (`windowControlChannel`,
+`audioCaptureChannel`, `audioStreamChannel`). When changing a channel method's name or signature,
+update both the Dart service wrapper (`lib/features/*/data/*_service.dart`) and the matching
+Swift handler in the same commit — the analyzer/compiler won't catch a mismatch here, only a
+runtime `PlatformException` or `MissingPluginException` will.
+
+### External services
+
+- **Deepgram** (`transcription/data/deepgram_service.dart`): raw WebSocket connection
+  (`web_socket_channel`), not the SDK. Streams 16kHz linear16 audio chunks in, parses
+  `is_final`/`interim` transcript JSON out.
+- **Gemini** (`ai_engine/data/gemini_service.dart`): `google_generative_ai` package,
+  `gemini-2.5-flash`, forced JSON response mode. Prompts live in `prompt_templates.dart`.
+  Response parsing is defensive (strips markdown fences, falls back to regex-extracting a JSON
+  array) because model output isn't always clean JSON — preserve that fallback if you touch it.
+
+Both API keys are user-supplied at runtime via Settings, stored with `shared_preferences`
+(`SettingsRepository`) — never hardcode or commit real keys.
+
+### Global hotkeys
+
+Registered in `WindowControlService._registerGlobalHotkeys()`: Cmd+Shift+H (panic hide),
+Cmd+Shift+M (toggle overlay visibility). These are OS-level (`hotkey_manager`, `HotKeyScope.system`),
+so testing them requires actually running the app on macOS, not just widget tests.

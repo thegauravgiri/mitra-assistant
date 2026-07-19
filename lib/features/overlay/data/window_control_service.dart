@@ -33,6 +33,7 @@ class WindowControlService {
     });
 
     await _registerGlobalHotkeys();
+    await enableScreenProtection();
   }
 
   Future<bool> enableScreenProtection() async {

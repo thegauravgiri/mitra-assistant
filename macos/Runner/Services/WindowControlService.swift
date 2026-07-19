@@ -20,7 +20,7 @@ class WindowControlService {
 
       switch call.method {
       case "setSharingTypeNone":
-        window.sharingType = .readWrite
+        window.sharingType = .none
         result(true)
       case "setSharingTypeReadWrite":
         window.sharingType = .readWrite
