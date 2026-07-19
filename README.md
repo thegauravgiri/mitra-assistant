@@ -45,6 +45,12 @@
 The project follows Clean Architecture principles organized by feature layers:
 
 ```
+.claude/
+└── agents/              # Claude Code agent configurations
+    ├── planning.md      # Planning Agent (Opus 4.8 Thinking Medium)
+    ├── implementation.md# Implementation Agent (Sonnet Medium)
+    ├── testing.md       # Testing Agent (Haiku)
+    └── document.md      # Document Agent (Haiku)
 lib/
 ├── core/
 │   ├── constants/       # Global constants & channel identifiers
