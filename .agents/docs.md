@@ -9,7 +9,15 @@
 This document defines mandatory guidelines for AI agents operating within the **Mitra Assistant** codebase.
 
 > [!IMPORTANT]
-> **PRIMARY DIRECTIVE**: Whenever major structural, architectural, functional, UI/UX, configuration, or dependency changes are made to the repository, the agent **MUST** review and update [README.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/README.md) and any relevant specification documents (e.g., [.agents/design.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/.agents/design.md)) before declaring the task complete or submitting git commits/pull requests.
+> **PRIMARY DIRECTIVE**: Whenever major structural, architectural, functional, UI/UX, configuration, or dependency changes are made to the repository, the agent **MUST** review and update [README.md](../README.md) and any relevant specification documents (e.g., [design.md](design.md)) before declaring the task complete or submitting git commits/pull requests.
+
+---
+
+## 📁 Shared `.docs/` Artifact Repository
+
+All AI model agents share artifacts via the **[.docs/](../.docs/README.md)** folder:
+1. **Claude Opus (Planning)** drafts technical implementation plans to **[.docs/implementation_plan.md](../.docs/implementation_plan.md)** and tasks to **[.docs/task.md](../.docs/task.md)**.
+2. **Gemini / Antigravity (Implementation)** reads the plans, executes the changes, updates **[.docs/task.md](../.docs/task.md)**, and records execution results in **[.docs/walkthrough.md](../.docs/walkthrough.md)**.
 
 ---
 
@@ -45,7 +53,7 @@ An agent must consider any of the following occurrences as a **Major Change** re
 
 ## 📝 README.md Maintenance Checklist for Agents
 
-When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/README.md) using the following checklist:
+When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](../README.md) using the following checklist:
 
 | Section in `README.md` | Audit & Update Actions |
 | :--- | :--- |
@@ -86,5 +94,5 @@ Agents should follow this step-by-step workflow during any task involving major 
 
 - **Keep Documentation Synchronized**: Never leave code changes and documentation in a divergent state.
 - **Clear Markdown Formatting**: Use structured headings, GitHub alerts (`[!NOTE]`, `[!IMPORTANT]`), concise bullet points, and syntax-highlighted code blocks.
-- **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/.agents/design.md)).
+- **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](design.md)).
 - **Concise Summaries**: Avoid fluff; focus on technical clarity, setup accuracy, and developer ergonomics.
