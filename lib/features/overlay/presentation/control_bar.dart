@@ -5,10 +5,11 @@ import '../../audio/providers/audio_providers.dart';
 import '../../transcription/providers/transcription_providers.dart';
 import '../../ai_engine/providers/ai_providers.dart';
 import '../../settings/providers/settings_providers.dart';
+import '../../history/providers/history_providers.dart';
 import '../data/window_control_service.dart';
 import '../../../core/theme/app_theme.dart';
 
-class ControlBar extends ConsumerWidget {
+class ControlBar extends ConsumerStatefulWidget {
   final int activeTab;
   final ValueChanged<int> onTabChanged;
   final bool isCompact;
@@ -23,7 +24,14 @@ class ControlBar extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ControlBar> createState() => _ControlBarState();
+}
+
+class _ControlBarState extends ConsumerState<ControlBar> {
+  DateTime? _meetingStartTime;
+
+  @override
+  Widget build(BuildContext context) {
     final audioState = ref.watch(audioNotifierProvider);
 
     return GestureDetector(
@@ -54,40 +62,6 @@ class ControlBar extends ConsumerWidget {
                 color: AppTheme.textPrimary,
               ),
             ),
-            const SizedBox(width: 8),
-
-            // Live Audio Visualizer Indicator
-            if (audioState.isRecording)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppTheme.secondaryAccent.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppTheme.secondaryAccent, width: 1),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppTheme.secondaryAccent,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'REC ${(audioState.audioLevel * 100).toInt()}%',
-                      style: const TextStyle(
-                        fontSize: 9,
-                        color: AppTheme.secondaryAccent,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
             const Spacer(),
 
             // Meeting Start / Stop Button
@@ -122,6 +96,12 @@ class ControlBar extends ConsumerWidget {
               ),
               onPressed: () async {
                 if (audioState.isRecording) {
+                  // Capture current session data before stopping
+                  final transcriptState = ref.read(transcriptionNotifierProvider);
+                  final aiState = ref.read(aiNotifierProvider);
+                  final startTime = _meetingStartTime ?? DateTime.now();
+
+                  // Stop analysis & audio services
                   ref.read(aiNotifierProvider.notifier).stopPeriodicAnalysis();
                   await ref
                       .read(transcriptionNotifierProvider.notifier)
@@ -129,6 +109,46 @@ class ControlBar extends ConsumerWidget {
                   await ref
                       .read(audioNotifierProvider.notifier)
                       .stopRecording();
+
+                  // Auto-generate title & summary from AI Insights
+                  String meetingTitle = '';
+                  String aiSummary = '';
+
+                  if (aiState.insights.isNotEmpty) {
+                    meetingTitle = aiState.insights.first.title;
+                    final topDescriptions = aiState.insights
+                        .take(2)
+                        .map((i) => i.description)
+                        .where((d) => d.trim().isNotEmpty);
+                    aiSummary = topDescriptions.join(' ');
+                  } else if (transcriptState.entries.isNotEmpty) {
+                    final text = transcriptState.entries.first.text;
+                    meetingTitle = text.length > 35 ? '${text.substring(0, 35)}...' : text;
+                    aiSummary = text.length > 120 ? '${text.substring(0, 120)}...' : text;
+                  }
+
+                  // Save meeting session to history
+                  if (transcriptState.entries.isNotEmpty) {
+                    await ref.read(historyNotifierProvider.notifier).saveCurrentMeeting(
+                          title: meetingTitle,
+                          aiSummary: aiSummary,
+                          startTime: startTime,
+                          entries: transcriptState.entries,
+                        );
+
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Meeting saved to History tab.'),
+                          duration: Duration(seconds: 2),
+                          backgroundColor: AppTheme.secondaryAccent,
+                        ),
+                      );
+                    }
+                  }
+
+                  // Reset local start time
+                  _meetingStartTime = null;
                 } else {
                   final settings = ref.read(settingsNotifierProvider);
                   if (settings.deepgramApiKey.trim().isEmpty) {
@@ -141,7 +161,7 @@ class ControlBar extends ConsumerWidget {
                         duration: Duration(seconds: 3),
                       ),
                     );
-                    onTabChanged(2); // Switch to Settings tab
+                    widget.onTabChanged(2); // Switch to Settings tab
                     return;
                   }
 
@@ -172,6 +192,13 @@ class ControlBar extends ConsumerWidget {
                     }
                     return;
                   }
+
+                  // Clear previous session state when starting a fresh meeting
+                  ref.read(transcriptionNotifierProvider.notifier).clearTranscript();
+                  ref.read(aiNotifierProvider.notifier).clearInsights();
+
+                  _meetingStartTime = DateTime.now();
+
                   await ref
                       .read(transcriptionNotifierProvider.notifier)
                       .startTranscription();
@@ -202,16 +229,16 @@ class ControlBar extends ConsumerWidget {
             // Minimize / Compact Mode Toggle
             IconButton(
               icon: Icon(
-                isCompact
+                widget.isCompact
                     ? Icons.unfold_more_rounded
                     : Icons.unfold_less_rounded,
                 size: 16,
                 color: AppTheme.textSecondary,
               ),
-              tooltip: isCompact ? 'Expand Panel' : 'Compact Pill',
+              tooltip: widget.isCompact ? 'Expand Panel' : 'Compact Pill',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
-              onPressed: onToggleCompact,
+              onPressed: widget.onToggleCompact,
             ),
           ],
         ),

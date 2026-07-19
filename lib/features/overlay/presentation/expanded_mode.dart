@@ -3,6 +3,7 @@ import 'control_bar.dart';
 import '../../transcription/presentation/transcript_view.dart';
 import '../../ai_engine/presentation/insight_view.dart';
 import '../../settings/presentation/settings_view.dart';
+import '../../history/presentation/history_view.dart';
 import '../../../core/theme/app_theme.dart';
 
 class ExpandedModeView extends StatefulWidget {
@@ -45,7 +46,7 @@ class _ExpandedModeViewState extends State<ExpandedModeView> {
           // Tab Navigation Switcher
           Container(
             color: AppTheme.cardBackground.withValues(alpha: 0.5),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: Row(
               children: [
                 _TabButton(
@@ -54,14 +55,21 @@ class _ExpandedModeViewState extends State<ExpandedModeView> {
                   isActive: _activeTab == 1,
                   onTap: () => setState(() => _activeTab = 1),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
                 _TabButton(
                   title: 'Transcript',
                   icon: Icons.subtitles_rounded,
                   isActive: _activeTab == 0,
                   onTap: () => setState(() => _activeTab = 0),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 4),
+                _TabButton(
+                  title: 'History',
+                  icon: Icons.history_rounded,
+                  isActive: _activeTab == 3,
+                  onTap: () => setState(() => _activeTab = 3),
+                ),
+                const SizedBox(width: 4),
                 _TabButton(
                   title: 'Settings',
                   icon: Icons.tune_rounded,
@@ -80,6 +88,7 @@ class _ExpandedModeViewState extends State<ExpandedModeView> {
                 const TranscriptView(),
                 InsightView(onOpenSettings: () => setState(() => _activeTab = 2)),
                 const SettingsView(),
+                const HistoryView(),
               ],
             ),
           ),

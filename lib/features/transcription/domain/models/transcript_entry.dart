@@ -28,4 +28,24 @@ class TranscriptEntry {
       speaker: speaker ?? this.speaker,
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'text': text,
+      'timestamp': timestamp.toIso8601String(),
+      'isFinal': isFinal,
+      'speaker': speaker,
+    };
+  }
+
+  factory TranscriptEntry.fromJson(Map<String, dynamic> json) {
+    return TranscriptEntry(
+      id: json['id'] as String? ?? '',
+      text: json['text'] as String? ?? '',
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      isFinal: json['isFinal'] as bool? ?? true,
+      speaker: json['speaker'] as String? ?? 'Meeting Participant',
+    );
+  }
 }

@@ -8,6 +8,7 @@ class AppConstants {
   static const String prefAnalysisInterval = 'analysis_interval_sec';
   static const String prefAudioInputDevice = 'audio_input_device';
   static const String prefCaptureSystemAudio = 'capture_system_audio';
+  static const String prefMeetingHistory = 'meeting_history';
 
   // AI Default Settings
   static const int defaultAnalysisIntervalSec = 12;

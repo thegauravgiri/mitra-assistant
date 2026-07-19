@@ -32,6 +32,7 @@ dependencies:
   
   # Local Storage & Utilities
   shared_preferences: ^2.5.3
+  path_provider: ^2.1.5
   uuid: ^4.5.1
   intl: ^0.19.0
 
