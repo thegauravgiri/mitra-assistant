@@ -54,10 +54,14 @@ An agent must consider any of the following occurrences as a **Major Change** re
 ## 📝 README.md Maintenance Checklist for Agents
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](../README.md) using the following checklist:
 =======
 When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/README.md) using the following checklist:
 >>>>>>> 06159ce (agent: add docs.md to instruct agent to update docs upon major changes)
+=======
+When a major change is made, the agent **MUST** perform a section-by-section audit of [README.md](../README.md) using the following checklist:
+>>>>>>> 032322b (agent: setup antigravity and claude collaboration)
 
 | Section in `README.md` | Audit & Update Actions |
 | :--- | :--- |
@@ -99,8 +103,12 @@ Agents should follow this step-by-step workflow during any task involving major 
 - **Keep Documentation Synchronized**: Never leave code changes and documentation in a divergent state.
 - **Clear Markdown Formatting**: Use structured headings, GitHub alerts (`[!NOTE]`, `[!IMPORTANT]`), concise bullet points, and syntax-highlighted code blocks.
 <<<<<<< HEAD
+<<<<<<< HEAD
 - **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](design.md)).
 =======
 - **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](file:///Users/gauravgiri/Developer/proshore/mitra_assistant/.agents/design.md)).
 >>>>>>> 06159ce (agent: add docs.md to instruct agent to update docs upon major changes)
+=======
+- **Accurate File References**: When referencing source code, use Markdown file links (e.g., [design.md](design.md)).
+>>>>>>> 032322b (agent: setup antigravity and claude collaboration)
 - **Concise Summaries**: Avoid fluff; focus on technical clarity, setup accuracy, and developer ergonomics.
