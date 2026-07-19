@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
+import 'app_text_styles.dart';
 
 class AppTheme {
-  // Color Palette
-  static const Color backgroundDark = Color(0xDC0F172A); // Translucent Slate 900
-  static const Color cardBackground = Color(0x801E293B); // Glass Slate 800
+  // Primary Palette
+  static const Color backgroundDark = Color(0xEC0F172A); // Slate 900 translucent
+  static const Color backgroundPureDark = Color(0xFF090D16); // Very deep slate
+  static const Color cardBackground = Color(0x991E293B); // Slate 800 glass opacity
+  static const Color cardBackgroundHover = Color(0xCC334155); // Slate 700 hover glass
   static const Color borderSubtle = Color(0x3364748B); // Slate 500 border
-  
+  static const Color borderGlow = Color(0x666366F1); // Indigo border glow
+
+  // Accent Colors
   static const Color primaryAccent = Color(0xFF6366F1); // Indigo
+  static const Color primaryAccentDark = Color(0xFF4F46E5);
   static const Color secondaryAccent = Color(0xFF10B981); // Emerald
   static const Color warningAccent = Color(0xFFF59E0B); // Amber
   static const Color panicAccent = Color(0xFFEF4444); // Red
+  static const Color cyanAccent = Color(0xFF06B6D4); // Cyan
 
+  // Text Colors
   static const Color textPrimary = Color(0xFFF8FAFC);
-  static const Color textSecondary = Color(0xFF94A3B8);
+  static const Color textSecondary = Color(0xFFCBD5E1);
   static const Color textMuted = Color(0xFF64748B);
 
   static ThemeData get darkTheme {
@@ -29,32 +37,32 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: cardBackground,
         elevation: 0,
+        margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           side: const BorderSide(color: borderSubtle, width: 1),
         ),
       ),
+      dividerTheme: const DividerThemeData(
+        color: borderSubtle,
+        thickness: 1,
+        space: 1,
+      ),
+      tooltipTheme: TooltipThemeData(
+        decoration: BoxDecoration(
+          color: backgroundPureDark,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: borderSubtle),
+        ),
+        textStyle: const TextStyle(fontSize: 11, color: textPrimary),
+      ),
       textTheme: const TextTheme(
-        titleLarge: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: textPrimary,
-          letterSpacing: -0.5,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 13,
-          color: textSecondary,
-          height: 1.4,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 11,
-          color: textMuted,
-        ),
+        titleLarge: AppTextStyles.titleLarge,
+        titleMedium: AppTextStyles.titleMedium,
+        titleSmall: AppTextStyles.titleSmall,
+        bodyMedium: AppTextStyles.bodyMedium,
+        bodySmall: AppTextStyles.bodySmall,
+        labelSmall: AppTextStyles.caption,
       ),
     );
   }

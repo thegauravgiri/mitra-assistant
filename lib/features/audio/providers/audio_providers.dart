@@ -112,8 +112,15 @@ class AudioNotifier extends StateNotifier<AudioState> {
   }
 
   double _calculateRmsLevel(Uint8List bytes) {
-    if (bytes.isEmpty) return 0.0;
-    final int16List = Int16List.view(bytes.buffer, bytes.offsetInBytes, bytes.lengthInBytes ~/ 2);
+    if (bytes.length < 2) return 0.0;
+    final alignedBytes = (bytes.offsetInBytes % 2 == 0)
+        ? bytes
+        : Uint8List.fromList(bytes);
+    final int16List = Int16List.view(
+      alignedBytes.buffer,
+      alignedBytes.offsetInBytes,
+      alignedBytes.lengthInBytes ~/ 2,
+    );
     if (int16List.isEmpty) return 0.0;
 
     double sum = 0.0;
