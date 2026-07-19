@@ -31,6 +31,15 @@ class AiNotifier extends StateNotifier<AiState> {
   Timer? _analysisTimer;
   String _lastAnalyzedTranscript = '';
 
+  static const int _maxInsightsCount = 20;
+  static const int _maxTranscriptCharLength = 3000;
+
+  static const Set<String> _stopWords = {
+    'the', 'a', 'an', 'and', 'to', 'in', 'of', 'for', 'with', 'on', 'at',
+    'by', 'from', 'is', 'are', 'was', 'were', 'be', 'been', 'should', 'could',
+    'would', 'that', 'this', 'it', 'as', 'or', 'we', 'you', 'i', 'our', 'your',
+  };
+
   AiNotifier(this._ref) : super(AiState(insights: []));
 
   void startPeriodicAnalysis() {
@@ -82,22 +91,34 @@ class AiNotifier extends StateNotifier<AiState> {
     _lastAnalyzedTranscript = fullText;
     state = state.copyWith(isAnalyzing: true, error: null);
 
+    // Sliding window: slice recent portion of transcript if very long
+    String transcriptSlice = fullText;
+    if (fullText.length > _maxTranscriptCharLength) {
+      transcriptSlice = fullText.substring(fullText.length - _maxTranscriptCharLength);
+    }
+
     try {
-      final existingTitles = state.insights.map((i) => i.title).toList();
+      final existingTitles = state.insights.map((i) => i.title).take(15).toList();
       final newInsights = await _geminiService.analyzeTranscript(
         apiKey: apiKey,
-        transcript: fullText,
+        transcript: transcriptSlice,
         existingInsightTitles: existingTitles,
       );
 
-      // Client-side deduplication fallback
+      // Client-side multi-pass semantic deduplication fallback
       final uniqueInsights = newInsights
           .where((candidate) => !_isDuplicate(candidate, state.insights))
           .toList();
 
       if (uniqueInsights.isNotEmpty) {
-        final updatedList = List<Insight>.from(uniqueInsights)
+        var updatedList = List<Insight>.from(uniqueInsights)
           ..addAll(state.insights);
+
+        // Cap maximum accumulated active insights
+        if (updatedList.length > _maxInsightsCount) {
+          updatedList = updatedList.sublist(0, _maxInsightsCount);
+        }
+
         state = state.copyWith(
           insights: updatedList,
           isAnalyzing: false,
@@ -116,11 +137,14 @@ class AiNotifier extends StateNotifier<AiState> {
     final candidateTitleNorm = _normalize(candidate.title);
     final candidateDescNorm = _normalize(candidate.description);
 
+    final candidateTitleTokens = _tokenize(candidate.title);
+    final candidateDescTokens = _tokenize(candidate.description);
+
     for (final existing in existingInsights) {
       final existingTitleNorm = _normalize(existing.title);
       final existingDescNorm = _normalize(existing.description);
 
-      // Check title identity or substring overlap for longer titles
+      // 1. Direct equality or substring containment check for titles
       if (candidateTitleNorm == existingTitleNorm ||
           (candidateTitleNorm.length > 5 &&
               existingTitleNorm.contains(candidateTitleNorm)) ||
@@ -129,7 +153,7 @@ class AiNotifier extends StateNotifier<AiState> {
         return true;
       }
 
-      // Check description similarity when titles differ slightly
+      // 2. Direct equality or substring containment for descriptions
       if (candidateDescNorm.length > 10 && existingDescNorm.length > 10) {
         if (candidateDescNorm == existingDescNorm ||
             candidateDescNorm.contains(existingDescNorm) ||
@@ -137,8 +161,37 @@ class AiNotifier extends StateNotifier<AiState> {
           return true;
         }
       }
+
+      // 3. Jaccard Token Overlap Similarity check
+      final existingTitleTokens = _tokenize(existing.title);
+      final titleSim = _calculateJaccardSimilarity(candidateTitleTokens, existingTitleTokens);
+      if (titleSim >= 0.45) {
+        return true;
+      }
+
+      final existingDescTokens = _tokenize(existing.description);
+      final descSim = _calculateJaccardSimilarity(candidateDescTokens, existingDescTokens);
+      if (descSim >= 0.45) {
+        return true;
+      }
     }
     return false;
+  }
+
+  Set<String> _tokenize(String text) {
+    final normalized = _normalize(text);
+    return normalized
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty && !_stopWords.contains(word))
+        .toSet();
+  }
+
+  double _calculateJaccardSimilarity(Set<String> setA, Set<String> setB) {
+    if (setA.isEmpty || setB.isEmpty) return 0.0;
+    final intersection = setA.intersection(setB).length;
+    final union = setA.union(setB).length;
+    if (union == 0) return 0.0;
+    return intersection / union;
   }
 
   String _normalize(String input) {
@@ -170,9 +223,18 @@ class AiNotifier extends StateNotifier<AiState> {
         question: question,
       );
 
-      if (newInsights.isNotEmpty) {
-        final updatedList = List<Insight>.from(newInsights)
+      final uniqueInsights = newInsights
+          .where((candidate) => !_isDuplicate(candidate, state.insights))
+          .toList();
+
+      if (uniqueInsights.isNotEmpty) {
+        var updatedList = List<Insight>.from(uniqueInsights)
           ..addAll(state.insights);
+
+        if (updatedList.length > _maxInsightsCount) {
+          updatedList = updatedList.sublist(0, _maxInsightsCount);
+        }
+
         state = state.copyWith(
           insights: updatedList,
           isAnalyzing: false,

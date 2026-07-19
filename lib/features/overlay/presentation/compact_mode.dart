@@ -5,6 +5,8 @@ import '../../audio/providers/audio_providers.dart';
 import '../../transcription/providers/transcription_providers.dart';
 import '../../ai_engine/providers/ai_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/design_tokens.dart';
+import '../../../core/widgets/status_indicator.dart';
 
 class CompactModeView extends ConsumerWidget {
   final VoidCallback onExpand;
@@ -30,41 +32,49 @@ class CompactModeView extends ConsumerWidget {
       onPanStart: (_) => windowManager.startDragging(),
       onDoubleTap: onExpand,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppTheme.backgroundDark,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.5), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(
+            color: audioState.isRecording
+                ? AppTheme.secondaryAccent.withValues(alpha: 0.6)
+                : AppTheme.primaryAccent.withValues(alpha: 0.5),
+            width: 1.5,
+          ),
+          boxShadow: AppShadows.medium,
         ),
         child: Row(
           children: [
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                color: audioState.isRecording ? AppTheme.secondaryAccent : AppTheme.textMuted,
-                shape: BoxShape.circle,
-              ),
+            StatusIndicator(
+              isActive: audioState.isRecording,
+              label: '',
+              activeColor: AppTheme.secondaryAccent,
+              inactiveColor: AppTheme.textMuted,
+              dotSize: 8,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Text(
                 displayText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: AppTheme.textPrimary,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.1,
+                ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.xs),
             IconButton(
-              icon: const Icon(Icons.open_in_full_rounded, size: 14, color: AppTheme.primaryAccent),
+              icon: const Icon(
+                Icons.open_in_full_rounded,
+                size: 14,
+                color: AppTheme.primaryAccent,
+              ),
+              tooltip: 'Expand Panel',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: onExpand,

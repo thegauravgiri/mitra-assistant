@@ -5,6 +5,8 @@ import '../../ai_engine/presentation/insight_view.dart';
 import '../../settings/presentation/settings_view.dart';
 import '../../history/presentation/history_view.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/design_tokens.dart';
+import '../../../core/widgets/animated_tab_bar.dart';
 
 class ExpandedModeView extends StatefulWidget {
   final VoidCallback onCollapse;
@@ -16,133 +18,65 @@ class ExpandedModeView extends StatefulWidget {
 }
 
 class _ExpandedModeViewState extends State<ExpandedModeView> {
-  int _activeTab = 1; // Default to AI Copilot
+  int _activeTab = 0; // Default to AI Copilot (Index 0)
+
+  static const List<TabItemData> _tabItems = [
+    TabItemData(title: 'AI Copilot', icon: Icons.auto_awesome_rounded),
+    TabItemData(title: 'Transcript', icon: Icons.subtitles_rounded),
+    TabItemData(title: 'History', icon: Icons.history_rounded),
+    TabItemData(title: 'Settings', icon: Icons.tune_rounded),
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.backgroundDark,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderSubtle, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(
+          color: AppTheme.borderGlow.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: AppShadows.medium,
       ),
-      child: Column(
-        children: [
-          // Top Control Bar
-          ControlBar(
-            activeTab: _activeTab,
-            onTabChanged: (idx) => setState(() => _activeTab = idx),
-            isCompact: false,
-            onToggleCompact: widget.onCollapse,
-          ),
-
-          // Tab Navigation Switcher
-          Container(
-            color: AppTheme.cardBackground.withValues(alpha: 0.5),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            child: Row(
-              children: [
-                _TabButton(
-                  title: 'AI Copilot',
-                  icon: Icons.auto_awesome_rounded,
-                  isActive: _activeTab == 1,
-                  onTap: () => setState(() => _activeTab = 1),
-                ),
-                const SizedBox(width: 4),
-                _TabButton(
-                  title: 'Transcript',
-                  icon: Icons.subtitles_rounded,
-                  isActive: _activeTab == 0,
-                  onTap: () => setState(() => _activeTab = 0),
-                ),
-                const SizedBox(width: 4),
-                _TabButton(
-                  title: 'History',
-                  icon: Icons.history_rounded,
-                  isActive: _activeTab == 3,
-                  onTap: () => setState(() => _activeTab = 3),
-                ),
-                const SizedBox(width: 4),
-                _TabButton(
-                  title: 'Settings',
-                  icon: Icons.tune_rounded,
-                  isActive: _activeTab == 2,
-                  onTap: () => setState(() => _activeTab = 2),
-                ),
-              ],
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: Column(
+          children: [
+            // Top Control Bar
+            ControlBar(
+              activeTab: _activeTab,
+              onTabChanged: (idx) => setState(() => _activeTab = idx),
+              isCompact: false,
+              onToggleCompact: widget.onCollapse,
             ),
-          ),
 
-          // Main Tab View Content
-          Expanded(
-            child: IndexedStack(
-              index: _activeTab,
-              children: [
-                const TranscriptView(),
-                InsightView(onOpenSettings: () => setState(() => _activeTab = 2)),
-                const SettingsView(),
-                const HistoryView(),
-              ],
+            // Tab Navigation Switcher
+            AnimatedTabBar(
+              tabs: _tabItems,
+              activeIndex: _activeTab,
+              onTabChanged: (idx) => setState(() => _activeTab = idx),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
-class _TabButton extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _TabButton({
-    required this.title,
-    required this.icon,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 6),
-          decoration: BoxDecoration(
-            color: isActive ? AppTheme.primaryAccent.withValues(alpha: 0.2) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isActive ? AppTheme.primaryAccent : Colors.transparent,
-              width: 1,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 14, color: isActive ? AppTheme.primaryAccent : AppTheme.textMuted),
-              const SizedBox(width: 4),
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                  color: isActive ? AppTheme.textPrimary : AppTheme.textMuted,
+            // Main Tab View Content with Fade Transition
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: AppDuration.fast,
+                child: KeyedSubtree(
+                  key: ValueKey<int>(_activeTab),
+                  child: IndexedStack(
+                    index: _activeTab,
+                    children: [
+                      InsightView(onOpenSettings: () => setState(() => _activeTab = 3)),
+                      const TranscriptView(),
+                      const HistoryView(),
+                      const SettingsView(),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

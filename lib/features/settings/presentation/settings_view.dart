@@ -4,6 +4,8 @@ import '../providers/settings_providers.dart';
 import '../../audio/providers/audio_providers.dart';
 import '../../overlay/data/window_control_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/design_tokens.dart';
+import '../../../core/widgets/app_text_field.dart';
 
 class SettingsView extends ConsumerStatefulWidget {
   const SettingsView({super.key});
@@ -37,7 +39,6 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final settings = ref.watch(settingsNotifierProvider);
     final audioState = ref.watch(audioNotifierProvider);
 
-    // Keep controller text updated if changed from provider
     if (_deepgramController.text != settings.deepgramApiKey) {
       _deepgramController.text = settings.deepgramApiKey;
     }
@@ -46,261 +47,245 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'API Credentials',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+          // Section 1: API Credentials Card
+          _SettingsCard(
+            title: 'API Credentials',
+            icon: Icons.key_rounded,
+            child: Column(
+              children: [
+                AppTextField(
+                  controller: _deepgramController,
+                  labelText: 'Deepgram API Key (Transcription)',
+                  hintText: 'Enter your Deepgram key...',
+                  obscureText: true,
+                  onChanged: (val) {
+                    ref.read(settingsNotifierProvider.notifier).updateDeepgramApiKey(val);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppTextField(
+                  controller: _geminiController,
+                  labelText: 'Gemini API Key (AI Context Engine)',
+                  hintText: 'Enter your Gemini key...',
+                  obscureText: true,
+                  onChanged: (val) {
+                    ref.read(settingsNotifierProvider.notifier).updateGeminiApiKey(val);
+                  },
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _deepgramController,
-            obscureText: true,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Deepgram API Key (Transcription)',
-              labelStyle: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
-              ),
-              filled: true,
-              fillColor: AppTheme.cardBackground,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-            ),
-            onChanged: (val) {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateDeepgramApiKey(val);
-            },
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _geminiController,
-            obscureText: true,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
-            decoration: InputDecoration(
-              labelText: 'Gemini API Key (AI Context)',
-              labelStyle: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
-              ),
-              filled: true,
-              fillColor: AppTheme.cardBackground,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.borderSubtle),
-              ),
-            ),
-            onChanged: (val) {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateGeminiApiKey(val);
-            },
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Audio Sources',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
 
-          // Microphone Input Device Dropdown
-          Row(
-            children: [
-              const Icon(
-                Icons.mic_rounded,
-                size: 16,
-                color: AppTheme.primaryAccent,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Input Mic:',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              const Spacer(),
-              IconButton(
-                icon: const Icon(
-                  Icons.refresh_rounded,
-                  size: 14,
-                  color: AppTheme.textMuted,
-                ),
-                tooltip: 'Refresh Audio Devices',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () {
-                  ref.read(audioNotifierProvider.notifier).refreshDevices();
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppTheme.cardBackground,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppTheme.borderSubtle),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                isExpanded: true,
-                value:
-                    audioState.availableDevices.any(
-                      (d) => d.id == audioState.selectedDeviceId,
-                    )
-                    ? audioState.selectedDeviceId
-                    : (audioState.availableDevices.isNotEmpty
-                          ? audioState.availableDevices.first.id
-                          : null),
-                hint: const Text(
-                  'Default System Microphone',
-                  style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
-                ),
-                dropdownColor: AppTheme.cardBackground,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppTheme.textPrimary,
-                ),
-                items: audioState.availableDevices.map((device) {
-                  return DropdownMenuItem<String>(
-                    value: device.id,
-                    child: Text(
-                      '${device.name}${device.isDefault ? " (Default)" : ""}',
-                      overflow: TextOverflow.ellipsis,
+          const SizedBox(height: AppSpacing.md),
+
+          // Section 2: Audio Configuration Card
+          _SettingsCard(
+            title: 'Audio Settings',
+            icon: Icons.mic_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Input Microphone:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary),
                     ),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    ref.read(audioNotifierProvider.notifier).selectDevice(val);
-                    ref
-                        .read(settingsNotifierProvider.notifier)
-                        .updateSelectedAudioDevice(val);
-                  }
-                },
-              ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, size: 14, color: AppTheme.primaryAccent),
+                      tooltip: 'Refresh Audio Devices',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        ref.read(audioNotifierProvider.notifier).refreshDevices();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundDark,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppTheme.borderSubtle),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: audioState.availableDevices.any((d) => d.id == audioState.selectedDeviceId)
+                          ? audioState.selectedDeviceId
+                          : (audioState.availableDevices.isNotEmpty ? audioState.availableDevices.first.id : null),
+                      hint: const Text('Default System Microphone', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                      dropdownColor: AppTheme.cardBackground,
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textPrimary),
+                      items: audioState.availableDevices.map((device) {
+                        return DropdownMenuItem<String>(
+                          value: device.id,
+                          child: Text(
+                            '${device.name}${device.isDefault ? " (Default)" : ""}',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          ref.read(audioNotifierProvider.notifier).selectDevice(val);
+                          ref.read(settingsNotifierProvider.notifier).updateSelectedAudioDevice(val);
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: const Text('Capture System Audio', style: TextStyle(fontSize: 12, color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Transcribes speaker audio from meetings (ScreenCaptureKit)', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                    value: audioState.captureSystemAudio,
+                    activeTrackColor: AppTheme.primaryAccent,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (val) {
+                      ref.read(audioNotifierProvider.notifier).toggleSystemAudio(val);
+                      ref.read(settingsNotifierProvider.notifier).updateCaptureSystemAudio(val);
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
 
-          // System Audio Switch
-          Material(
-            color: Colors.transparent,
-            child: SwitchListTile(
-              title: const Text(
-                'Capture System Audio',
-                style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-              ),
-              subtitle: const Text(
-                'Transcribes speaker audio from meetings (ScreenCaptureKit)',
-                style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
-              ),
-              value: audioState.captureSystemAudio,
-              activeTrackColor: AppTheme.primaryAccent,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (val) {
-                ref.read(audioNotifierProvider.notifier).toggleSystemAudio(val);
-                ref
-                    .read(settingsNotifierProvider.notifier)
-                    .updateCaptureSystemAudio(val);
-              },
+          const SizedBox(height: AppSpacing.md),
+
+          // Section 3: AI & Privacy Card
+          _SettingsCard(
+            title: 'AI Copilot & Privacy',
+            icon: Icons.tune_rounded,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Analysis Frequency:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textSecondary)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        'Every ${settings.analysisIntervalSec}s',
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.primaryAccent),
+                      ),
+                    ),
+                  ],
+                ),
+                Slider(
+                  value: settings.analysisIntervalSec.toDouble(),
+                  min: 5,
+                  max: 30,
+                  divisions: 5,
+                  activeColor: AppTheme.primaryAccent,
+                  inactiveColor: AppTheme.borderSubtle,
+                  onChanged: (val) {
+                    ref.read(settingsNotifierProvider.notifier).updateAnalysisIntervalSec(val.toInt());
+                  },
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Material(
+                  color: Colors.transparent,
+                  child: SwitchListTile(
+                    title: const Text('Screen-Share Protection', style: TextStyle(fontSize: 12, color: AppTheme.textPrimary, fontWeight: FontWeight.w600)),
+                    subtitle: const Text('Hides overlay window during screen share (NSWindow sharingType)', style: TextStyle(fontSize: 11, color: AppTheme.textMuted)),
+                    value: _screenProtectionEnabled,
+                    activeTrackColor: AppTheme.primaryAccent,
+                    contentPadding: EdgeInsets.zero,
+                    onChanged: (val) async {
+                      setState(() {
+                        _screenProtectionEnabled = val;
+                      });
+                      if (val) {
+                        await WindowControlService.instance.enableScreenProtection();
+                      } else {
+                        await WindowControlService.instance.disableScreenProtection();
+                      }
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
 
-          const SizedBox(height: 16),
-          const Text(
-            'AI Copilot Frequency',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
+          const SizedBox(height: AppSpacing.md),
+
+          // Section 4: Global Shortcuts Card
+          _SettingsCard(
+            title: 'Global Shortcuts',
+            icon: Icons.keyboard_rounded,
+            child: Column(
+              children: const [
+                _ShortcutRow(shortcut: '⌘ + Shift + H', description: 'Panic Hide (Instant conceal window)'),
+                SizedBox(height: AppSpacing.sm),
+                _ShortcutRow(shortcut: '⌘ + Shift + M', description: 'Toggle Overlay Window visibility'),
+              ],
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Interval: ${settings.analysisIntervalSec} seconds',
-            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-          ),
-          Slider(
-            value: settings.analysisIntervalSec.toDouble(),
-            min: 5,
-            max: 30,
-            divisions: 5,
-            activeColor: AppTheme.primaryAccent,
-            onChanged: (val) {
-              ref
-                  .read(settingsNotifierProvider.notifier)
-                  .updateAnalysisIntervalSec(val.toInt());
-            },
-          ),
-          const SizedBox(height: 16),
-          Material(
-            color: Colors.transparent,
-            child: SwitchListTile(
-              title: const Text(
-                'Screen-Share Protection',
-                style: TextStyle(fontSize: 13, color: AppTheme.textPrimary),
-              ),
-              subtitle: const Text(
-                'Hides overlay window during screen share (NSWindow sharingType)',
-                style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
-              ),
-              value: _screenProtectionEnabled,
-              activeTrackColor: AppTheme.primaryAccent,
-              contentPadding: EdgeInsets.zero,
-              onChanged: (val) async {
-                setState(() {
-                  _screenProtectionEnabled = val;
-                });
-                if (val) {
-                  await WindowControlService.instance.enableScreenProtection();
-                } else {
-                  await WindowControlService.instance.disableScreenProtection();
-                }
-              },
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _SettingsCard({
+    required this.title,
+    required this.icon,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppTheme.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundPureDark.withValues(alpha: 0.3),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.md)),
+              border: const Border(bottom: BorderSide(color: AppTheme.borderSubtle)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 14, color: AppTheme.primaryAccent),
+                const SizedBox(width: AppSpacing.xs + 2),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 16),
-          const Divider(color: AppTheme.borderSubtle),
-          const SizedBox(height: 8),
-          const Text(
-            'Global Shortcuts',
-            style: TextStyle(
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.bold,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 8),
-          _ShortcutRow(
-            shortcut: '⌘ + Shift + H',
-            description: 'Panic Hide (Instant conceal)',
-          ),
-          const SizedBox(height: 6),
-          _ShortcutRow(
-            shortcut: '⌘ + Shift + M',
-            description: 'Toggle Overlay Window',
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: child,
           ),
         ],
       ),
@@ -319,27 +304,27 @@ class _ShortcutRow extends StatelessWidget {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xxs + 1),
           decoration: BoxDecoration(
-            color: AppTheme.cardBackground,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: AppTheme.borderSubtle),
+            color: AppTheme.backgroundDark,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            border: Border.all(color: AppTheme.primaryAccent.withValues(alpha: 0.4)),
           ),
           child: Text(
             shortcut,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.bold,
               color: AppTheme.primaryAccent,
               fontFamily: 'monospace',
             ),
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: AppSpacing.sm),
         Expanded(
           child: Text(
             description,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+            style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
           ),
         ),
       ],

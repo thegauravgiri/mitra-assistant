@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/design_tokens.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../domain/models/meeting_session.dart';
 import '../providers/history_providers.dart';
 
@@ -17,8 +19,11 @@ class HistoryView extends ConsumerWidget {
       children: [
         // Header Toolbar
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          color: AppTheme.cardBackground.withValues(alpha: 0.3),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs + 2),
+          decoration: BoxDecoration(
+            color: AppTheme.cardBackground.withValues(alpha: 0.3),
+            border: const Border(bottom: BorderSide(color: AppTheme.borderSubtle)),
+          ),
           child: Row(
             children: [
               const Icon(
@@ -26,7 +31,7 @@ class HistoryView extends ConsumerWidget {
                 size: 14,
                 color: AppTheme.primaryAccent,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xs + 2),
               const Text(
                 'Meeting History',
                 style: TextStyle(
@@ -35,6 +40,20 @@ class HistoryView extends ConsumerWidget {
                   color: AppTheme.textPrimary,
                 ),
               ),
+              if (state.sessions.isNotEmpty) ...[
+                const SizedBox(width: AppSpacing.xs + 2),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Text(
+                    '${state.sessions.length}',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppTheme.primaryAccent),
+                  ),
+                ),
+              ],
               const Spacer(),
               if (state.sessions.isNotEmpty)
                 IconButton(
@@ -64,44 +83,15 @@ class HistoryView extends ConsumerWidget {
                   ),
                 )
               : state.sessions.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(
-                              Icons.history_toggle_off_rounded,
-                              color: AppTheme.textMuted,
-                              size: 40,
-                            ),
-                            SizedBox(height: 12),
-                            Text(
-                              'No Meeting History',
-                              style: TextStyle(
-                                color: AppTheme.textPrimary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                            SizedBox(height: 6),
-                            Text(
-                              'When you complete a meeting, its transcript, AI summary, and date/time will be automatically saved here.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: AppTheme.textMuted,
-                                fontSize: 11,
-                                height: 1.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  ? const EmptyStateWidget(
+                      icon: Icons.history_toggle_off_rounded,
+                      title: 'No Meeting History',
+                      description: 'When you complete a meeting, its transcript, AI summary, and date/time will be automatically saved here.',
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
                       ),
                       itemCount: state.sessions.length,
                       itemBuilder: (context, index) {
@@ -118,10 +108,14 @@ class HistoryView extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardBackground,
+        backgroundColor: AppTheme.backgroundDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: const BorderSide(color: AppTheme.borderSubtle),
+        ),
         title: const Text(
           'Clear History',
-          style: TextStyle(color: AppTheme.textPrimary, fontSize: 14),
+          style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
         ),
         content: const Text(
           'Are you sure you want to clear all meeting history? This action cannot be undone.',
@@ -135,12 +129,13 @@ class HistoryView extends ConsumerWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.panicAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             onPressed: () {
               ref.read(historyNotifierProvider.notifier).clearHistory();
               Navigator.of(ctx).pop();
             },
-            child: const Text('Clear All', style: TextStyle(color: Colors.white)),
+            child: const Text('Clear All', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -171,162 +166,149 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
         ? '${duration.inMinutes} min'
         : '${duration.inSeconds} sec';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Row: Icon + Title + Delete
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.event_note_rounded,
-                  size: 18,
-                  color: AppTheme.primaryAccent,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        session.title,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Text(
-                            dateStr,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.textMuted,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 5,
-                              vertical: 1,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.borderSubtle,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              durationStr,
-                              style: const TextStyle(
-                                fontSize: 9,
-                                color: AppTheme.textSecondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    size: 16,
-                    color: AppTheme.textMuted,
-                  ),
-                  tooltip: 'Delete Session',
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () {
-                    _showDeleteConfirmationDialog(context, ref, session);
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            // AI Summary Box
-            if (session.aiSummary.isNotEmpty) ...[
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryAccent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppTheme.primaryAccent.withValues(alpha: 0.3),
-                  ),
-                ),
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm + 2),
+      decoration: BoxDecoration(
+        color: AppTheme.cardBackground,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppTheme.borderSubtle),
+      ),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row: Icon + Title + Delete
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.event_note_rounded,
+                size: 18,
+                color: AppTheme.primaryAccent,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      session.title,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.textPrimary,
+                        letterSpacing: -0.1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
                     Row(
-                      children: const [
-                        Icon(
-                          Icons.auto_awesome_rounded,
-                          size: 12,
-                          color: AppTheme.primaryAccent,
-                        ),
-                        SizedBox(width: 4),
+                      children: [
                         Text(
-                          'AI Summary',
-                          style: TextStyle(
+                          dateStr,
+                          style: const TextStyle(
                             fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryAccent,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.xs + 2),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.borderSubtle,
+                            borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+                          ),
+                          child: Text(
+                            durationStr,
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      session.aiSummary,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textPrimary,
-                        height: 1.4,
-                      ),
-                    ),
                   ],
                 ),
               ),
-              const SizedBox(height: 10),
+              IconButton(
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 16,
+                  color: AppTheme.textMuted,
+                ),
+                tooltip: 'Delete Session',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+                onPressed: () {
+                  _showDeleteConfirmationDialog(context, ref, session);
+                },
+              ),
             ],
+          ),
 
-            // Action Buttons Row: Download CSV & Preview Transcript Toggle
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.secondaryAccent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
+          const SizedBox(height: AppSpacing.sm),
+
+          // AI Summary Box
+          if (session.aiSummary.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm + 2),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppRadius.md - 2),
+                border: Border.all(
+                  color: AppTheme.primaryAccent.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 12,
+                        color: AppTheme.primaryAccent,
+                      ),
+                      SizedBox(width: AppSpacing.xs),
+                      Text(
+                        'AI Summary',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    session.aiSummary,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppTheme.textPrimary,
+                      height: 1.4,
                     ),
                   ),
-                  icon: const Icon(Icons.download_rounded, size: 14),
-                  label: const Text(
-                    'Download CSV',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  onPressed: () async {
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+
+          // Action Buttons Row: Download CSV & Preview Transcript Toggle
+          Row(
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () async {
                     final path = await ref
                         .read(historyNotifierProvider.notifier)
                         .exportSessionCsv(session);
@@ -334,7 +316,7 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                       if (path != null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('CSV saved to Documents: $path'),
+                            content: Text('CSV saved: $path'),
                             backgroundColor: AppTheme.secondaryAccent,
                             duration: const Duration(seconds: 4),
                             action: SnackBarAction(
@@ -356,84 +338,118 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
                       }
                     }
                   },
-                ),
-                const Spacer(),
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      _isExpanded = !_isExpanded;
-                    });
-                  },
-                  child: Row(
-                    children: [
-                      Text(
-                        '${session.entries.length} Entries',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.textMuted,
+                  child: AnimatedContainer(
+                    duration: AppDuration.fast,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.secondaryAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: AppTheme.secondaryAccent.withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(
+                          Icons.file_download_outlined,
+                          size: 13,
+                          color: AppTheme.secondaryAccent,
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Icon(
-                        _isExpanded
-                            ? Icons.keyboard_arrow_up_rounded
-                            : Icons.keyboard_arrow_down_rounded,
-                        size: 16,
-                        color: AppTheme.textMuted,
-                      ),
-                    ],
+                        SizedBox(width: 4),
+                        Text(
+                          'Export CSV',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.secondaryAccent,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
-            ),
-
-            // Expandable Transcript Preview List
-            if (_isExpanded) ...[
-              const SizedBox(height: 10),
-              const Divider(color: AppTheme.borderSubtle, height: 1),
-              const SizedBox(height: 8),
-              Container(
-                constraints: const BoxConstraints(maxHeight: 180),
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: session.entries.length,
-                  itemBuilder: (context, idx) {
-                    final entry = session.entries[idx];
-                    final timeStr = DateFormat('HH:mm:ss').format(entry.timestamp);
-
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            timeStr,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              color: AppTheme.textMuted,
-                              fontFamily: 'monospace',
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              entry.text,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.textSecondary,
-                                height: 1.3,
-                              ),
-                            ),
-                          ),
-                        ],
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _isExpanded = !_isExpanded;
+                  });
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      '${session.entries.length} Entries',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppTheme.textMuted,
                       ),
-                    );
-                  },
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Icon(
+                      _isExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 16,
+                      color: AppTheme.textMuted,
+                    ),
+                  ],
                 ),
               ),
             ],
+          ),
+
+          // Expandable Transcript Preview List
+          if (_isExpanded) ...[
+            const SizedBox(height: AppSpacing.sm),
+            const Divider(color: AppTheme.borderSubtle, height: 1),
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: session.entries.length,
+                itemBuilder: (context, idx) {
+                  final entry = session.entries[idx];
+                  final timeStr = DateFormat('HH:mm:ss').format(entry.timestamp);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.xs + 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          timeStr,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: AppTheme.textMuted,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            entry.text,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppTheme.textSecondary,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -446,7 +462,11 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.cardBackground,
+        backgroundColor: AppTheme.backgroundDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          side: const BorderSide(color: AppTheme.borderSubtle),
+        ),
         title: const Text(
           'Delete Meeting Session',
           style: TextStyle(color: AppTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
@@ -463,18 +483,19 @@ class _SessionCardState extends ConsumerState<_SessionCard> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.panicAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
             ),
             onPressed: () {
               ref.read(historyNotifierProvider.notifier).deleteSession(session.id);
               Navigator.of(ctx).pop();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Meeting session and exported files deleted.'),
+                  content: Text('Meeting session deleted.'),
                   duration: Duration(seconds: 2),
                 ),
               );
             },
-            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+            child: const Text('Delete', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

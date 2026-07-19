@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
 import 'compact_mode.dart';
 import 'expanded_mode.dart';
+import '../../../core/theme/design_tokens.dart';
 
 class OverlayShell extends StatefulWidget {
   const OverlayShell({super.key});
@@ -32,10 +33,27 @@ class _OverlayShellState extends State<OverlayShell> {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
+          duration: AppDuration.normal,
+          switchInCurve: Curves.easeInOut,
+          switchOutCurve: Curves.easeInOut,
+          transitionBuilder: (child, animation) {
+            return FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 0.96, end: 1.0).animate(animation),
+                child: child,
+              ),
+            );
+          },
           child: _isCompact
-              ? CompactModeView(onExpand: _toggleCompactMode)
-              : ExpandedModeView(onCollapse: _toggleCompactMode),
+              ? CompactModeView(
+                  key: const ValueKey('compact_view'),
+                  onExpand: _toggleCompactMode,
+                )
+              : ExpandedModeView(
+                  key: const ValueKey('expanded_view'),
+                  onCollapse: _toggleCompactMode,
+                ),
         ),
       ),
     );

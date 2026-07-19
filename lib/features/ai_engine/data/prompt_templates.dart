@@ -26,7 +26,7 @@ Keep your response extremely concise and focused. Respond ONLY with the JSON arr
         ? ''
         : '''
 
-Already Suggested Insights (DO NOT repeat or paraphrase any of these):
+Already Suggested Insights (DO NOT REPEAT, REPHRASE, OR PARAPHRASE ANY OF THESE):
 ${existingInsights.map((e) => '- $e').join('\n')}
 ''';
 
@@ -36,12 +36,12 @@ Live Meeting Transcript:
 $recentTranscript
 ---
 $existingBlock
-Analyze the conversation above and generate 1-3 fresh contextual insights/talking points for the user.
+Analyze the recent conversation above and generate 1-2 fresh contextual insights/talking points for the user.
 
-CRITICAL DEDUPLICATION RULES:
-1. Do NOT repeat, rephrase, or suggest anything already listed under "Already Suggested Insights".
-2. If no new actionable topics, key points, or follow-up questions are present, return an empty JSON array [].
-3. Only output genuinely new, non-obvious, actionable insights.
+STRICT DEDUPLICATION RULES:
+1. ABSOLUTELY DO NOT repeat, rephrase, or output conceptually similar items to anything listed under "Already Suggested Insights".
+2. Quality over quantity: If no genuinely NEW actionable topic, question, or follow-up is present in recent conversation, return an empty JSON array [].
+3. Do NOT output generic filler advice. Only output fresh, high-value insights directly tied to new statements in the transcript.
 ''';
   }
 
