@@ -14,8 +14,21 @@ class AppConstants {
   static const int defaultAnalysisIntervalSec = 12;
   static const int maxTranscriptRollingBufferTokens = 4000;
 
+  // Document Context Constants
+  static const List<String> supportedDocumentExtensions = [
+    'txt',
+    'md',
+    'pdf',
+    'docx',
+  ];
+  static const int maxDocumentSizeBytes = 10 * 1024 * 1024; // 10 MB limit
+  static const int documentChunkSize = 500;
+  static const int maxDocumentContextChars = 1500;
+  static const double documentRelevanceThreshold = 0.08;
+
   // Channels
   static const String windowControlChannel = 'com.mitra.assistant/window_control';
   static const String audioCaptureChannel = 'com.mitra.assistant/audio_capture_control';
   static const String audioStreamChannel = 'com.mitra.assistant/audio_stream';
 }
+

@@ -19,6 +19,11 @@
   - **Continuous Analysis**: Powered by Google Gemini (`google_generative_ai`) operating over a rolling transcript buffer.
   - **Actionable Insights**: Automatically extracts key meeting summaries, action items, topic switches, and direct answers to questions asked during discussion.
 
+- 📄 **Contextual Document Upload**
+  - **Multi-Format Support**: Upload TXT, MD, PDF, and DOCX files directly via drag-and-drop or file picker before or during meetings.
+  - **Zero-Token Local Keyword Matching**: Parsed document content is keyword-indexed locally and injected into Gemini context only when relevant topics are actively discussed in the meeting transcript.
+  - **Session-Only Memory**: Uploaded documents are kept in session memory with one-time AI summaries and pinning controls.
+
 - ⚙️ **Customization & Controls**
   - Configure Deepgram and Gemini API keys directly in app settings.
   - Adjust AI analysis frequency intervals (default: 12 seconds).
@@ -35,6 +40,7 @@
 | **Window & Hotkey Control** | `window_manager` & `hotkey_manager` |
 | **Live Speech-to-Text** | Deepgram WebSocket SDK (`deepgram_speech_to_text`) |
 | **AI Context Engine** | Google Gemini SDK (`google_generative_ai`) |
+| **Document Processing** | `file_picker`, `syncfusion_flutter_pdf`, `docx_to_text`, `desktop_drop` |
 | **Native Integration** | Swift Platform Channels (macOS Audio Capture & `NSWindow` Privacy) |
 | **Persistence** | `shared_preferences` |
 
@@ -45,20 +51,16 @@
 The project follows Clean Architecture principles organized by feature layers:
 
 ```
-.claude/
-└── agents/              # Claude Code agent configurations
-    ├── planning.md      # Planning Agent (Opus 4.8 Thinking Medium)
-    ├── implementation.md# Implementation Agent (Sonnet Medium)
-    ├── testing.md       # Testing Agent (Haiku)
-    └── document.md      # Document Agent (Haiku)
+.docs/                   # Planning, task lists, and walkthrough specs
 lib/
 ├── core/
 │   ├── constants/       # Global constants & channel identifiers
 │   ├── theme/           # App dark theme & design tokens
-│   └── utils/           # Logger & helper utilities
+│   └── utils/           # Logger, TextSimilarity & helper utilities
 ├── features/
 │   ├── ai_engine/       # Gemini service, prompt templates & insights UI
 │   ├── audio/           # Native audio capture service & device management
+│   ├── documents/       # Document parsing, chunking, keyword relevance & chips bar UI
 │   ├── overlay/         # Overlay shell, compact/expanded views & window service
 │   ├── settings/        # API keys & configuration repository/UI
 │   └── transcription/   # Deepgram STT service, models & live transcript view

@@ -110,11 +110,12 @@ class GeminiService {
     required String apiKey,
     required String transcript,
     List<String> existingInsightTitles = const [],
+    String documentContext = '',
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Gemini API key missing in Settings');
     }
-    if (transcript.trim().isEmpty) return [];
+    if (transcript.trim().isEmpty && documentContext.trim().isEmpty) return [];
 
     _initModel(apiKey.trim());
 
@@ -122,6 +123,7 @@ class GeminiService {
       final prompt = PromptTemplates.buildAnalysisPrompt(
         transcript,
         existingInsights: existingInsightTitles,
+        documentContext: documentContext,
       );
       final response = await _model?.generateContent([Content.text(prompt)]);
       final text = response?.text;
@@ -148,6 +150,7 @@ class GeminiService {
     required String apiKey,
     required String transcript,
     required String question,
+    String documentContext = '',
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Gemini API key missing in Settings');
@@ -157,7 +160,11 @@ class GeminiService {
     _initModel(apiKey.trim());
 
     try {
-      final prompt = PromptTemplates.buildQuestionPrompt(transcript, question);
+      final prompt = PromptTemplates.buildQuestionPrompt(
+        transcript,
+        question,
+        documentContext: documentContext,
+      );
       final response = await _model?.generateContent([Content.text(prompt)]);
       final text = response?.text;
 
@@ -169,6 +176,31 @@ class GeminiService {
       throw Exception(
         'Gemini AI Error: ${e.toString().replaceAll('Exception: ', '')}',
       );
+    }
+  }
+
+  /// One-shot plain text document summarization call
+  Future<String> summarizeDocument({
+    required String apiKey,
+    required String text,
+  }) async {
+    if (apiKey.trim().isEmpty || text.trim().isEmpty) return '';
+
+    try {
+      final textModel = GenerativeModel(
+        model: 'gemini-2.5-flash',
+        apiKey: apiKey.trim(),
+        generationConfig: GenerationConfig(
+          temperature: 0.2,
+        ),
+      );
+
+      final prompt = PromptTemplates.buildDocumentSummaryPrompt(text);
+      final response = await textModel.generateContent([Content.text(prompt)]);
+      return response.text?.trim() ?? '';
+    } catch (e) {
+      AppLogger.error('Error during document summarization', e);
+      return '';
     }
   }
 }
