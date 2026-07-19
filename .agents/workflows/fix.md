@@ -169,7 +169,8 @@ If verification is incomplete for any reason (can't run on this platform, no tes
 
 ## Phase 5 — Report
 
-Summarize what happened, clearly and briefly.
+Summarize what happened, clearly and briefly, and save the report in [.docs/walkthrough.md](../../.docs/walkthrough.md).
+
 
 ---
 

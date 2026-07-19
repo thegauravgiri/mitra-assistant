@@ -325,7 +325,10 @@ These become implementation requirements.
 
 Present the completed plan to the user.
 
-Persist the planning artifact if project memory is available.
+Persist the planning artifacts in the shared **[.docs/](../../.docs/README.md)** directory:
+- Technical plan: [.docs/implementation_plan.md](../../.docs/implementation_plan.md)
+- Execution task checklist: [.docs/task.md](../../.docs/task.md)
+
 
 ---
 
