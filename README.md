@@ -51,22 +51,13 @@
 The project follows Clean Architecture principles organized by feature layers:
 
 ```
-<<<<<<< HEAD
-<<<<<<< HEAD
 .docs/                   # Planning, task lists, and walkthrough specs
-=======
-=======
->>>>>>> 032322b153bab131210054e25480d3271f0a296f
 .claude/
 └── agents/              # Claude Code agent configurations
     ├── planning.md      # Planning Agent (Opus 4.8 Thinking Medium)
     ├── implementation.md# Implementation Agent (Sonnet Medium)
     ├── testing.md       # Testing Agent (Haiku)
     └── document.md      # Document Agent (Haiku)
-<<<<<<< HEAD
->>>>>>> 2f7adb2 (agent: add claude agents for plan, implement, test, document)
-=======
->>>>>>> 032322b153bab131210054e25480d3271f0a296f
 lib/
 ├── core/
 │   ├── constants/       # Global constants & channel identifiers
@@ -130,6 +121,34 @@ Upon first launch, macOS will request permission for:
 - **Screen & System Audio Recording**: Required to capture participant audio from video calls.
 
 Ensure permissions are granted under **System Settings > Privacy & Security > Microphone / Screen & System Audio Recording**.
+
+### 🛡️ macOS Gatekeeper & Unverified Developer Warning
+If you download pre-built release binaries or zip archives of **Mitra Assistant**, macOS Gatekeeper may display a security alert:
+> *"Apple could not verify “mitra_assistant” is free of malware that may harm your Mac or compromise your privacy."*
+
+This is standard macOS Gatekeeper behavior for downloaded un-notarized applications (which sets the `com.apple.quarantine` attribute). You can bypass or resolve this warning using any of the following methods:
+
+#### Method 1: Remove Quarantine Attribute via Terminal (Recommended)
+Run the following command in your terminal to remove the quarantine flag from the application bundle:
+```bash
+# If installed in /Applications:
+xattr -d com.apple.quarantine /Applications/mitra_assistant.app
+
+# If running directly from your Downloads folder:
+xattr -d com.apple.quarantine ~/Downloads/mitra_assistant.app
+```
+
+#### Method 2: System Settings Override
+1. Open **System Settings** > **Privacy & Security**.
+2. Scroll down to the **Security** section.
+3. Locate the alert message stating *"mitra_assistant was blocked from use because it is not from an identified developer"*.
+4. Click **Open Anyway** and confirm with your macOS admin credentials.
+
+#### Method 3: Build & Run from Source
+Building the project locally avoids Gatekeeper quarantine checks:
+```bash
+flutter run -d macos
+```
 
 ### App Settings Setup
 1. Click the ⚙️ **Settings** icon on the overlay control bar.

@@ -78,3 +78,26 @@ Clicking the paperclip upload button did not display the native macOS `NSOpenPan
 1. Added `await FilePicker.skipEntitlementsChecks()` prior to calling `FilePicker.pickFiles()` in `DocumentParserService.pickAndParseDocuments()`.
 2. Added `<key>com.apple.security.files.user-selected.read-only</key><true/>` to `DebugProfile.entitlements` and `Release.entitlements`.
 
+---
+
+## 🛠️ Fix: macOS Gatekeeper Malware Verification Alert
+
+### Bug
+When attempting to run or open downloaded builds of **Mitra Assistant**, macOS displays a Gatekeeper security alert:
+> *"Apple could not verify “mitra_assistant” is free of malware that may harm your Mac or compromise your privacy."*
+
+### Root Cause
+macOS Gatekeeper automatically tags binaries downloaded from web browsers or GitHub Releases with the `com.apple.quarantine` extended file attribute. Un-notarized app binaries (built without an active Apple Developer ID Code Signing & Notarization pipeline) trigger Gatekeeper blocks upon execution.
+
+### Fix
+1. Updated [README.md](../README.md) under **⚙️ Initial Configuration & Permissions** with a dedicated **🛡️ macOS Gatekeeper & Unverified Developer Warning** section providing:
+   - **Terminal Command Method**: `xattr -d com.apple.quarantine /path/to/mitra_assistant.app`
+   - **System Settings Override**: **System Settings > Privacy & Security > Open Anyway**
+   - **Local Developer Build**: `flutter run -d macos`
+2. Cleaned up legacy merge conflict markers in `README.md` and `CLAUDE.md`.
+
+### Verification
+- **Static Analysis**: `flutter analyze` completed with 0 errors/warnings.
+- **Automated Tests**: `flutter test` passed 14/14 unit & widget tests.
+- **Documentation Verification**: Verified `README.md` and `CLAUDE.md` syntax and formatting.
+
