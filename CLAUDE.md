@@ -25,6 +25,7 @@ flutter test test/unit_test.dart -n "Insight category"   # run a single test/gro
 flutter build macos             # release build
 ```
 
+<<<<<<< HEAD
 ## Agent Workflow & Shared Artifacts Directory (`.docs/`)
 
 The repository uses a dual-engine architecture:
@@ -44,6 +45,16 @@ Project-specific subagents configured in `.claude/agents/`:
 2. **Implementation Agent** (`.claude/agents/implementation.md`): Uses **Gemini (Antigravity)**. Responsible for feature development, Flutter/Dart & Swift MethodChannel code authoring, bug fixes, running test suites, and writing `.docs/walkthrough.md`.
 3. **Testing Agent** (`.claude/agents/testing.md`): Uses **Haiku / Gemini**. Responsible for executing test suites (`flutter test`), static analysis (`flutter analyze`), and unit/widget test authoring.
 4. **Document Agent** (`.claude/agents/document.md`): Uses **Haiku / Gemini**. Responsible for documentation synchronization (`README.md`, `CLAUDE.md`, `.agents/docs.md`, `.docs/README.md`).
+=======
+## Subagents (Claude Code)
+
+Project-specific subagents configured in `.claude/agents/`:
+
+1. **Planning Agent** (`.claude/agents/planning.md`): Uses **Opus 4.8 Thinking (Medium Effort)**. Responsible for architecture analysis, feature breakdown, risk assessment, and technical implementation planning.
+2. **Implementation Agent** (`.claude/agents/implementation.md`): Uses **Sonnet (Medium Effort)**. Responsible for feature development, Flutter/Dart & Swift MethodChannel code authoring, and bug fixes.
+3. **Testing Agent** (`.claude/agents/testing.md`): Uses **Haiku**. Responsible for executing test suites (`flutter test`), static analysis (`flutter analyze`), and unit/widget test authoring.
+4. **Document Agent** (`.claude/agents/document.md`): Uses **Haiku**. Responsible for documentation synchronization (`README.md`, `CLAUDE.md`, `.agents/docs.md`).
+>>>>>>> 2f7adb2 (agent: add claude agents for plan, implement, test, document)
 
 ## Architecture
 
