@@ -101,3 +101,34 @@ macOS Gatekeeper automatically tags binaries downloaded from web browsers or Git
 - **Automated Tests**: `flutter test` passed 14/14 unit & widget tests.
 - **Documentation Verification**: Verified `README.md` and `CLAUDE.md` syntax and formatting.
 
+---
+
+## 🪟 Feature: Native Windows Desktop Support
+
+### Implementation Overview
+Previously, Mitra Assistant's native audio and window controls only existed in Swift for macOS. We developed the complete C++ Win32 platform bridge to bring full native parity to Windows:
+
+1. **Screenshare Stealth Protection (`window_control_channel.cpp`)**:
+   - Implemented `SetWindowDisplayAffinity(GetHandle(), WDA_EXCLUDEFROMCAPTURE)` on Windows 10/11.
+   - Hides the floating overlay window from screen share applications (Zoom, Microsoft Teams, Google Meet, OBS) and screenshot tools.
+   - Implemented `ShowWindow(GetHandle(), SW_HIDE)` and `SW_SHOW` for panic hide and unhide controls.
+
+2. **WASAPI Audio Capture & Loopback Service (`audio_capture_channel.cpp`)**:
+   - Integrated Windows Audio Session API (WASAPI) with COM multithreaded runtime.
+   - Captured microphone input via `IAudioCaptureClient` and default/selected audio endpoint.
+   - Captured system/meeting audio loopback via `AUDCLNT_STREAMFLAGS_LOOPBACK` from the default render endpoint (`eRender`).
+   - Implemented real-time mono mixing and downsampling to 16kHz 16-bit linear PCM binary chunks emitted across `com.mitra.assistant/audio_stream` EventChannel for Deepgram streaming STT.
+   - Enumerated audio capture devices with friendly names via `IMMDeviceEnumerator` and `PKEY_Device_FriendlyName`.
+
+3. **Core Dart Improvements & Bug Fixes**:
+   - **UTF-8 Encoding**: Replaced `String.fromCharCodes(bytes)` with `utf8.decode(bytes, allowMalformed: true)` in `DocumentParserService`.
+   - **Tab State Preservation**: Replaced keyed subtree in `ExpandedModeView` with `IndexedStack` to preserve state, search filters, and scroll position across tab switches.
+   - **Cross-Platform Hotkeys**: Configured `WindowControlService` to use `HotKeyModifier.control` on Windows (`Ctrl+Shift+H` / `Ctrl+Shift+M`) to prevent Windows Start key collisions.
+
+### Verification
+- **Static Analysis**: `flutter analyze` passed with 0 issues.
+- **Automated Tests**: `flutter test` passed 15/15 unit and widget tests.
+- **Windows Compilation**: `flutter build windows --debug` and `flutter build windows --release` built successfully.
+- **Runtime Execution**: Launched and verified running process on Windows desktop with Impeller rendering engine.
+
+

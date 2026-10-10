@@ -18,17 +18,21 @@ class TranscriptionState {
     this.error,
   });
 
+  // Sentinel lets copyWith tell "not provided" from an explicit null, so callers
+  // can clear the error with `error: null` while other updates preserve it.
+  static const Object _sentinel = Object();
+
   TranscriptionState copyWith({
     List<TranscriptEntry>? entries,
     String? currentInterim,
     bool? isConnected,
-    String? error,
+    Object? error = _sentinel,
   }) {
     return TranscriptionState(
       entries: entries ?? this.entries,
       currentInterim: currentInterim ?? this.currentInterim,
       isConnected: isConnected ?? this.isConnected,
-      error: error,
+      error: identical(error, _sentinel) ? this.error : error as String?,
     );
   }
 
@@ -90,7 +94,7 @@ class TranscriptionNotifier extends StateNotifier<TranscriptionState> {
     _transcriptSub = null;
 
     await _deepgramService.disconnect();
-    state = state.copyWith(isConnected: false, currentInterim: '');
+    state = state.copyWith(isConnected: false, currentInterim: '', error: null);
   }
 
   void clearTranscript() {

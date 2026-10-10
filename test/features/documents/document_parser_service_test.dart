@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mitra_assistant/features/documents/data/document_parser_service.dart';
@@ -27,6 +28,21 @@ void main() {
       expect(doc.fullText, equals(sampleText));
       expect(doc.chunks, isNotEmpty);
       expect(doc.keywords, containsAll({'hello', 'world', 'test', 'document'}));
+    });
+
+    test('parseBytes decodes multi-byte UTF-8 characters without corruption', () async {
+      final sampleText = 'Mitra Assistant supports 🚀 emojis and international characters: café & résumé.';
+      final bytes = Uint8List.fromList(utf8.encode(sampleText));
+
+      final doc = await parserService.parseBytes(
+        bytes: bytes,
+        fileName: 'unicode.txt',
+        fileExtension: 'txt',
+      );
+
+      expect(doc.status, equals(DocStatus.parsing));
+      expect(doc.fullText, equals(sampleText));
+      expect(doc.chunks, isNotEmpty);
     });
 
     test('parseBytes rejects unsupported file extensions', () async {

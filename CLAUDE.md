@@ -4,25 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Mitra Assistant is a Flutter **macOS desktop overlay** app: an always-on-top, frameless
+Mitra Assistant is a Flutter **desktop overlay** app (supporting **macOS** and **Windows**): an always-on-top, frameless
 window that captures meeting/system audio, live-transcribes it (Deepgram), and periodically
 feeds the rolling transcript to Gemini to surface real-time insights (key points, questions,
 action items, suggestions) during a call. It has a "panic hide" hotkey and can make itself
 invisible to screen-sharing/recording — this is a stealth-overlay use case, not a typical CRUD app.
 
-Android/iOS/Linux/Windows platform folders exist only as Flutter scaffolding; `window_manager`
-and `hotkey_manager` are desktop-only, so **macOS is the only platform actually implemented**
-(see `macos/Runner/Services/`).
+Native platform bridges are implemented in:
+- **macOS**: `macos/Runner/Services/` (Swift: CoreAudio, ScreenCaptureKit, `NSWindow.sharingType = .none`)
+- **Windows**: `windows/runner/` (C++: WASAPI Loopback, `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`)
 
 ## Commands
 
 ```bash
 flutter pub get                 # install dependencies
-flutter run -d macos            # run the app (this is THE way to manually test it)
+flutter run -d windows          # run on Windows desktop
+flutter run -d macos            # run on macOS desktop
 flutter analyze                 # static analysis (flutter_lints + analysis_options.yaml)
 flutter test                    # run all tests in test/
 flutter test test/unit_test.dart -n "Insight category"   # run a single test/group by name
-flutter build macos             # release build
+flutter build windows           # release build for Windows
+flutter build macos             # release build for macOS
 ```
 
 ## Agent Workflow & Shared Artifacts Directory (`.docs/`)
@@ -71,19 +73,21 @@ the current transcript/API keys) — there's no separate "use case" layer. Servi
 the notifier, not injected via Riverpod providers themselves (except `AudioCaptureService`,
 which is a singleton via `.instance`).
 
-### Native bridge (macOS)
+### Native bridge (macOS & Windows)
 
 Audio capture and window control are NOT implemented in Dart — they're MethodChannel/EventChannel
-calls into Swift code in `macos/Runner/Services/`:
-- `AudioCaptureService.swift` — mic + system audio capture, device enumeration, permissions
-- `WindowControlService.swift` — screen-capture visibility (`setSharingTypeNone`/`ReadWrite`),
-  panic hide
+calls into native platform code:
+- **macOS** (`macos/Runner/Services/`):
+  - `AudioCaptureService.swift` — mic + system audio capture, device enumeration, permissions
+  - `WindowControlService.swift` — screen-capture visibility (`setSharingTypeNone`/`ReadWrite`), panic hide
+- **Windows** (`windows/runner/`):
+  - `audio_capture_channel.cpp` — WASAPI mic + system audio loopback capture (`AUDCLNT_STREAMFLAGS_LOOPBACK`), device enumeration
+  - `window_control_channel.cpp` — screen-capture stealth protection (`SetWindowDisplayAffinity` with `WDA_EXCLUDEFROMCAPTURE`), panic hide
 
 Channel names are the single source of truth in `AppConstants` (`windowControlChannel`,
 `audioCaptureChannel`, `audioStreamChannel`). When changing a channel method's name or signature,
 update both the Dart service wrapper (`lib/features/*/data/*_service.dart`) and the matching
-Swift handler in the same commit — the analyzer/compiler won't catch a mismatch here, only a
-runtime `PlatformException` or `MissingPluginException` will.
+native handlers in the same commit.
 
 ### External services
 

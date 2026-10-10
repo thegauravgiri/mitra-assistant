@@ -41,3 +41,16 @@ See [implementation_plan.md](implementation_plan.md) for full detail.
 - [x] `flutter test` green
 - [x] `flutter run -d macos`: off-topic doc sends no tokens; on-topic doc surfaces referencing insights
 - [x] Author `.docs/walkthrough.md` (Implementation Agent)
+
+## Phase 8 — Native Windows Support
+- [x] Install & initialize Flutter SDK 3.47.6 on Windows machine
+- [x] Verify Visual Studio Build Tools 2019 C++ toolchain
+- [x] Fix UTF-8 multibyte character decoding bug in `DocumentParserService`
+- [x] Add unit test for UTF-8 decoding with emojis and international text
+- [x] Fix tab state preservation in `ExpandedModeView`
+- [x] Implement Windows native screenshare stealth protection via `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`
+- [x] Implement Windows native WASAPI audio capture & system audio loopback (`AUDCLNT_STREAMFLAGS_LOOPBACK`)
+- [x] Register native platform channels in `windows/runner/flutter_window.cpp` and update `CMakeLists.txt`
+- [x] Verify Windows build (`flutter build windows --debug` & `--release`)
+- [x] Launch and run Mitra Assistant on Windows desktop (`flutter run -d windows`)
+

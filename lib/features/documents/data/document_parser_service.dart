@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:docx_to_text/docx_to_text.dart';
@@ -145,7 +146,7 @@ class DocumentParserService {
     try {
       String extractedText = '';
       if (fileExtension == 'txt' || fileExtension == 'md') {
-        extractedText = String.fromCharCodes(bytes);
+        extractedText = utf8.decode(bytes, allowMalformed: true);
       } else if (fileExtension == 'pdf') {
         final PdfDocument pdfDoc = PdfDocument(inputBytes: bytes);
         extractedText = PdfTextExtractor(pdfDoc).extractText();

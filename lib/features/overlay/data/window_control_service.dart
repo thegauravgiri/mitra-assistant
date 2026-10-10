@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:window_manager/window_manager.dart';
@@ -71,10 +72,13 @@ class WindowControlService {
   }
 
   Future<void> _registerGlobalHotkeys() async {
-    // Panic Hide: Command + Shift + H
+    final primaryModifier =
+        Platform.isMacOS ? HotKeyModifier.meta : HotKeyModifier.control;
+
+    // Panic Hide: Command/Control + Shift + H
     HotKey panicHotkey = HotKey(
       key: PhysicalKeyboardKey.keyH,
-      modifiers: [HotKeyModifier.meta, HotKeyModifier.shift],
+      modifiers: [primaryModifier, HotKeyModifier.shift],
       scope: HotKeyScope.system,
     );
 
@@ -85,10 +89,10 @@ class WindowControlService {
       },
     );
 
-    // Toggle Overlay: Command + Shift + M
+    // Toggle Overlay: Command/Control + Shift + M
     HotKey toggleHotkey = HotKey(
       key: PhysicalKeyboardKey.keyM,
-      modifiers: [HotKeyModifier.meta, HotKeyModifier.shift],
+      modifiers: [primaryModifier, HotKeyModifier.shift],
       scope: HotKeyScope.system,
     );
 

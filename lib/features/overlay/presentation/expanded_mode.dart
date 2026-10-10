@@ -58,22 +58,16 @@ class _ExpandedModeViewState extends State<ExpandedModeView> {
               onTabChanged: (idx) => setState(() => _activeTab = idx),
             ),
 
-            // Main Tab View Content with Fade Transition
+            // Main Tab View Content (IndexedStack preserves tab states and scroll positions)
             Expanded(
-              child: AnimatedSwitcher(
-                duration: AppDuration.fast,
-                child: KeyedSubtree(
-                  key: ValueKey<int>(_activeTab),
-                  child: IndexedStack(
-                    index: _activeTab,
-                    children: [
-                      InsightView(onOpenSettings: () => setState(() => _activeTab = 3)),
-                      const TranscriptView(),
-                      const HistoryView(),
-                      const SettingsView(),
-                    ],
-                  ),
-                ),
+              child: IndexedStack(
+                index: _activeTab,
+                children: [
+                  InsightView(onOpenSettings: () => setState(() => _activeTab = 3)),
+                  const TranscriptView(),
+                  const HistoryView(),
+                  const SettingsView(),
+                ],
               ),
             ),
           ],

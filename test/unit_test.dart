@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mitra_assistant/features/transcription/domain/models/transcript_entry.dart';
+import 'package:mitra_assistant/features/transcription/providers/transcription_providers.dart';
 import 'package:mitra_assistant/features/ai_engine/domain/models/insight.dart';
 
 void main() {
@@ -20,6 +21,23 @@ void main() {
       final updated = entry.copyWith(text: 'Updated text');
       expect(updated.id, '123');
       expect(updated.text, 'Updated text');
+    });
+
+    test('TranscriptionState copyWith preserves error unless explicitly cleared', () {
+      final stateWithError = TranscriptionState(
+        entries: [],
+        error: 'Network connection failed',
+      );
+
+      // Calling copyWith without passing error preserves the error
+      final updatedState = stateWithError.copyWith(
+        currentInterim: 'Hello...',
+      );
+      expect(updatedState.error, equals('Network connection failed'));
+
+      // Explicitly passing error: null clears it
+      final clearedState = updatedState.copyWith(error: null);
+      expect(clearedState.error, isNull);
     });
 
     test('Insight category properties', () {

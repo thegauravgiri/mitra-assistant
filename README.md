@@ -35,13 +35,13 @@
 
 | Layer | Technology |
 | :--- | :--- |
-| **UI Framework** | [Flutter](https://flutter.dev) (Desktop / macOS target) |
+| **UI Framework** | [Flutter](https://flutter.dev) (Desktop / macOS & Windows targets) |
 | **State Management** | [Riverpod](https://riverpod.dev) (`flutter_riverpod`) |
 | **Window & Hotkey Control** | `window_manager` & `hotkey_manager` |
 | **Live Speech-to-Text** | Deepgram WebSocket SDK (`deepgram_speech_to_text`) |
 | **AI Context Engine** | Google Gemini SDK (`google_generative_ai`) |
 | **Document Processing** | `file_picker`, `syncfusion_flutter_pdf`, `docx_to_text`, `desktop_drop` |
-| **Native Integration** | Swift Platform Channels (macOS Audio Capture & `NSWindow` Privacy) |
+| **Native Integration** | Swift & Win32 C++ Platform Channels (Audio Loopback & Screenshare Privacy) |
 | **Persistence** | `shared_preferences` |
 
 ---
