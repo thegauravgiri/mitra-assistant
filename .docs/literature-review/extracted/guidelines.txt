@@ -1,0 +1,356 @@
+OFFICIAL
+
+Unit
+Assessment Type
+Assessment Number
+Assessment
+Weighting
+
+ITNET312A Major Individual Project
+Report
+2
+Literature Review
+20%
+
+Alignment with Unit
+and Course
+
+Unit Learning Outcomes
+ULO 1: Apply project
+management skills and methods,
+develop and implement complex
+technology projects.
+ULO 2: Conduct effective project
+research and an extensive
+literature review.
+
+Due Date/Time
+
+Week 6
+Via Moodle Turnitin 5:00 pm (AEST)
+
+Assessment
+Description
+
+This is an individual assessment
+Content and Structure:
+In this assessment, students are required to conduct and submit an extensive
+literature review to support the research and development of their major project.
+The literature review must demonstrate competence in accepted referencing and
+citing protocols.
+
+Detailed
+Submission
+Requirements
+
+Assessed by: Lecturer/Tutor Submission: in Moodle. Feedback: overall feedback
+for the individual in Moodle.
+
+1
+OFFICIAL
+
+OFFICIAL
+
+Misconduct
+
+•
+•
+•
+
+•
+•
+
+•
+
+•
+
+Late Submission
+
+•
+•
+
+Special consideration
+
+•
+
+•
+•
+
+•
+
+The assessment will be submitted through Turnitin via your unit page on
+Moodle.
+Turnitin is plagiarism software, which will identify if you have copied information
+and included it in your assessment.
+Copying information from others (i.e. websites, partner company information, or
+other students, etc.) without acknowledging the author is classified as
+misconduct.
+Engaging someone else to write any part of your assessment for you outside of
+the group work arrangement is classified as misconduct.
+To avoid being charged with Misconduct, students need to submit their work
+and apply APA or Harvard Style Referencing (ask your lecturer
+(https://courses.highered.tafensw.edu.au/mod/page/view.php?id=48) if you do
+not know what this means, or you need assistance applying it).
+The TAFE misconduct policy and the procedure can be read on the TAFE
+website ((https://www.tafensw.edu.au/about/policies-procedures/highereducation).
+Use the TAFE referencing guide accessible on Moodle.
+Any assessment submitted past the specific due date and time will be classified
+as Late.
+Any Late submission will be subject to a reduction of the mark allocated for the
+assessment item by 5% per day (or part thereof) of the total marks available. A
+‘day’ for this purpose is defined as any day of the week including weekends.
+Assignments submitted later than one (1) week after the due date will not be
+accepted unless special consideration is approved as per the formal process.
+
+Students whose ability to submit or attend an assessment item is affected by
+sickness, misadventure, or other circumstances beyond their control may be
+eligible for special consideration. No consideration is given when the condition
+or event is unrelated to the student's performance in a component of the
+assessment, or when it is considered not to be serious.
+Students applying for special consideration must submit the form within 3 days
+of the due date of the assessment item or exam.
+The form can be obtained from the TAFE website
+(https://courses.highered.tafensw.edu.au/mod/page/view.php?id=48) or oncampus P.4.32.
+The request form must be submitted to Admin Office. Supporting evidence
+should be attached. For further information please refer to the Student
+Assessment Policy and associated Procedure available on
+(https://www.tafensw.edu.au/about/policies-procedures/higher-education).
+
+2
+OFFICIAL
+
+OFFICIAL
+
+Academic Integrity
+Generative AI / ChatGPT Use Type
+Generative AI tools can produce diverse forms of content, spanning text generation, image synthesis, audio, and synthetic
+data. Some examples include ChatGPT, Copilot, Gemini, Claude, NovelAI, Jasper AI, DALL-E, Midjourney, Runway, Adobe
+Firefly, etc.
+(Specify here and highlight one of the following AI Levels). For example,
+The expected and permitted use of AI in the assessment is: Level 1.
+If you have questions about appropriate use, you must check with your teacher or course coordinator before using AI in your
+assessment. Inappropriate use of AI may lead to an academic misconduct report.
+Note that you are expected to fully understand and be able to discuss every aspect of your assessment.
+Whatever level of AI use is permitted, if there is a concern about the use of AI tools exceeding the assessment guidelines,
+then you may be asked to discuss the assignment with the teacher before the mark is finalised.
+
+LEVEL 1: NO AI
+
+The entire assessment should be completed without the use of AI.
+AI must not be used at any point during the assessment, including for translation, editing,
+generating content or ideas
+
+LEVEL 2: AI-ASSISTED
+EDITING
+
+AI can be used as an editor to make improvements to the clarity or quality of your work.
+This includes:
+•
+
+Spelling and grammar checking and rewriting for style and conciseness
+
+•
+
+Feedback on language, grammar structure
+
+•
+
+Using AI for data cleaning
+
+3
+OFFICIAL
+
+•
+
+(add as appropriate for discipline?)
+
+OFFICIAL
+You are accountable for the quality and appropriateness of the language and writing, as
+well as all other aspects of the assignment.
+AI can be used to improve your work, but it should not be used to generate new ideas,
+answers, or content (this is Level 3: AI Assisted Ideas).
+
+LEVEL 3: AI-ASSISTED
+IDEAS
+
+AI can be used in the assessment for brainstorming, creating structures, and generating
+ideas for improving work, including feedback on content and methods. You should clearly
+acknowledge how AI was used in preparing the assessment.
+AI can be used as a source of information. You are accountable for validating and verifying
+the accuracy and reliability of the information.
+Any AI-generated content should be cited as a source (i.e., quoted or sufficient paraphrased
+and source cited).
+You are required to declare the use of Generative AI like ChatGPT in the production of the
+assessment. For example, reports and presentations must include a ChatGPT / Gen AI
+Appendix at the end. You are warned that the absence of the Appendix is equivalent to
+stating “I did NOT use ChatGPT / Generative AI” which if proven to be false, then
+constitutes a breach of Academic Integrity. DON’T BE SORRY, JUST DECLARE IT!
+Students must clearly acknowledge within the ChatGPT / Gen AI Appendix any use of
+Generative AI tools through a statement which includes: the full name of the tool used
+(with version number), how it was used, the reason for use, and the prompts that you
+used.
+
+LEVEL 4: AI-ASSISTED
+CREATION, HUMAN
+EVALUATION
+
+AI is used to complete certain element of the task, and you will provide discussion or
+commentary on the AI-generated content. This assessment explicitly requires critical
+engagement with AI-generated content and the evaluation of its output.
+You will use AI to complete specified tasks in your assessment. Any AI-generated content
+must be cited. You are expected to fully understand and be able to discuss every aspect of
+the AI-generated content.
+
+Rubric for Report (20marks)
+3
+OFFICIAL
+
+Requirements
+
+Total
+
+High Distinction
+
+Distinction
+OFFICIAL
+
+Credit Pass
+
+Pass
+
+Fail
+
+Depth and Breadth of Coverage
+
+10%
+
+Sources are
+exceptionally wellintegrated and they
+support the claims
+arguedin the paper
+very effectively.
+
+Sources are well
+integrated and
+support the paper’s
+claims.
+
+Sources support
+some claims made in
+the paper, but might
+not be integrated well
+within the paper’s
+argument
+
+The paper was copied
+from some resources.
+
+8.5 to 10
+The written work
+shows great depth of
+thought, excellent
+development of
+argument, logical
+analysis, and insight
+into the subject.
+
+7.5 to 8.4
+The written work
+shows some evidence
+of analysis, supported
+by logical argument
+and insight into the
+subject.
+
+6.5 to 7.4
+The written work
+shows evidence of
+elementary analysis
+and the development
+of argument.
+
+The paper
+does not use
+adequate
+research or if
+it does, the
+sources are
+not integrated
+well.
+5 to 6.4
+The written
+work is mainly
+descriptive,
+showing a
+basic
+understanding
+of the topic.
+
+4.3 to 5
+All aspects of the
+written work conform
+to a high
+academic/professional
+standard.
+
+3.8 to 4.2
+Most aspects of the
+written work conform
+to a high
+academic/professional
+standard.
+
+3.3 to 3.7
+Most aspects of the
+written work conform
+to an acceptable
+academic/professional
+standard.
+
+2.5 to 3.2
+The written
+work displays
+a basic
+structure.
+
+0 to 2.4
+The written work is
+not of an
+academic/professional
+standard.
+
+4.3 to 5
+
+3.8 to 4.2
+
+3.3 to 3.7
+
+2.5 to 3.2
+
+0 to 2.4
+
+demonstration of the ability to find
+significant sources, familiarity with
+the existing body of knowledge,
+analysis of existing research, and
+learning through a careful reading
+of existing scholarship.
+Critical Elements
+
+5%
+
+Structure, Language, and
+Conventions
+
+5%
+
+0 to 4.9
+The written work
+demonstrates a
+limited understanding
+of the topic.
+
+3
+OFFICIAL
+
+

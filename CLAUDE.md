@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **New session on this branch (`academic-coursework`)?** Read [.docs/memory.md](.docs/memory.md) first — it has full context on an in-progress university assignment that reuses this app as its subject, carried over from a previous conversation on another machine.
+
 ## What this is
 
 Mitra Assistant is a Flutter **desktop overlay** app (supporting **macOS** and **Windows**): an always-on-top, frameless

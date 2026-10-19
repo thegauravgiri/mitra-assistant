@@ -1,0 +1,165 @@
+HEAR MY HANDS
+A Python-Based Real-Time Sign Language Interpreter Using
+Computer Vision and Machine Learning
+
+Biplav Uprety || Sneha Neupane || Sushan Rana Magar || Rimisha Khadka
+
+Introduction
+Hear My Hands is designed to use a webcam or mobile camera to recognize at least 50 common
+signs and convert them into text and speech in real time. The project aims for 85% accuracy and
+a response time of less than four seconds. The system is based on Python, OpenCV, Media Pipe,
+and CNNs, and it follows a workflow from camera input to sign recognition output.
+Researchers do not treat sign language recognition as a simple gesture classification problem.
+This is because sign languages use both manual features, such as hand shape and movement, and
+non-manual features, such as facial expressions and body posture. In addition, successful sign
+language systems need to consider language, Deaf culture, accessibility, and human-computer
+interaction, not just computer vision techniques (Bragg et al., 2019; Liang et al., 2023; Rastgoo
+et al., 2021). Research on Turkish sign language also shows that signs involve hand orientation,
+movement, posture, and facial information at the same time. This means that systems that only
+look at cropped hand images may miss important information (Sincan & Keles, 2020).
+
+Theoretical Background
+Artificial Intelligence and Machine Learning
+While machine learning (ML) enables systems to recognize patterns in data, artificial
+intelligence (AI) enables systems to mimic human intelligence. In order to correctly classify
+and interpret signs, machine learning models are trained using datasets of hand gestures.
+
+Computer Vision
+In order to capture and process visual input from cameras, computer vision is essential.
+Real-time hand shape, movement, and position identification is achieved through methods
+like image processing, object detection, and feature extraction.
+
+Deep Learning Techniques
+Gesture recognition makes extensive use of deep learning models like Convolutional
+Neural Networks (CNNs) and Recurrent Neural Networks (RNNs). While RNNs are helpful
+for sequential gesture interpretation, CNNs aid in the recognition of spatial features, such
+as hand shapes.
+
+Critical Analysis and Synthesis
+An important idea in the literature is the difference between isolated sign recognition,
+continuous sign recognition, and sign language translation. Isolated sign recognition
+identifies one sign from one video clip. Continuous sign recognition identifies a sequence
+of signs over time. Sign language translation goes one step further by converting signs into
+spoken-language sentences, where the grammar and word order may be different from the
+original sign language (Liang et al., 2023; Camgoz et al., 2018; Camgoz et al., 2020). Since
+
+Hear My Hands focuses on 50 common signs and is measured mainly by accuracy and
+speed, it is more suitable as an isolated sign recognition system rather than a full
+translation system, even though it produces text and speech output (Liang et al., 2023;
+Camgoz et al., 2020). Previous studies on large continuous sign language datasets, such as
+RWTH-PHOENIX-Weather, show that continuous recognition requires much larger labelled
+datasets and more complex temporal models than a short project usually allows (Forster et
+al., 2014; Cui et al., 2019).
+
+Advancements in Sign Language Recognition
+Another major trend in the literature is the shift from special sensors to regular RGB
+camera systems. For example, BosphorusSign was created using Kinect v2 depth sensing,
+and AUTSL includes RGB, depth, and skeleton data. On the other hand, MS-ASL and WLASL
+show that large real-world RGB datasets can support signer-independent recognition using
+more practical and accessible hardware (Camgoz et al., 2016; Sincan & Keles, 2020; Vaezi
+Joze & Koller, 2018; Li et al., 2020). This supports the decision in Hear My Hands to use a
+webcam or mobile camera. However, it also means the system must deal with more
+variation in lighting, background, camera angle, and signing style compared with systems
+built in controlled environments (Vaezi Joze & Koller, 2018; Sincan & Keles, 2020; Li et al.,
+2020).
+The development of sign language models has also changed over time. Earlier systems
+often used handcrafted features, but recent work has moved toward deep learning
+
+methods that can learn both spatial and temporal patterns. These include recurrent
+models for continuous recognition and transformer-based models for recognition and
+translation, because many signs depend on movement over time and not just on a single
+hand shape (Cui et al., 2019; Camgoz et al., 2020; Rastgoo et al., 2021). For a low-cost realtime project, landmark-based methods are still useful. MediaPipe Hands can track hand
+landmarks in real time from a single RGB camera, which reduces the amount of work
+needed for the recognition model (Zhang et al., 2020). For this reason, the use of Python,
+OpenCV, MediaPipe, webcam input, feature extraction, and a CNN-based recognition stage
+in Hear My Hands is in line with current practice. At the same time, the literature suggests
+that adding temporal models and including body or face information could improve the
+system beyond simple frame-by-frame classification (Zhang et al., 2020; Sincan & Keles,
+2020; Rastgoo et al., 2021).
+Another common finding in the literature is that the quality and diversity of data often affect
+performance more than the choice of model itself, especially when systems are tested on
+new users and in realistic situations (Vaezi Joze & Koller, 2018; Li et al., 2020; Sincan &
+Keles, 2020). Our project also identifies low accuracy, limited training data, and camera
+limitations as key risks. This suggests that collecting data from multiple signers, keeping
+the classes balanced, and testing the system in realistic conditions should be major
+priorities. The literature therefore supports building a local dataset for the selected 50 signs
+with variation in clothing, lighting, camera angle, background, and signer identity if the
+project wants to achieve 85% accuracy outside a controlled lab setting (Vaezi Joze & Koller,
+2018; Li et al., 2020; Sincan & Keles, 2020).
+
+The literature also makes it clear that sign languages are not universal. Different public
+datasets are usually built for specific sign languages, such as American Sign Language,
+German Sign Language, and Turkish Sign Language, rather than for a single global sign
+language system (Bragg et al., 2019; Forster et al., 2014; Sincan & Keles, 2020; Li et al.,
+2020). We will be using the Australian Sign Language vocabulary. This is important because
+the vocabulary, annotations, and benchmark comparisons all depend on the chosen sign
+language. Domain-specific datasets such as BosphorusSign also show that a limited
+vocabulary in areas such as health, finance, or daily communication can be a practical
+starting point for assistive technology, which fits well with the project’s proposed use in
+community, education, and healthcare settings (Camgoz et al., 2016).
+
+Conclusion
+Overall, the literature suggests that Hear My Hands is a realistic first-stage assistive
+technology project if it is treated as a vision-based isolated sign recognition system that
+uses standard RGB cameras, real-time hand landmark extraction, and a lightweight
+temporal classifier to produce text and speech for a clearly defined vocabulary and target
+sign language (Liang et al., 2023; Zhang et al., 2020; Li et al., 2020). This design fits the
+project’s low-cost hardware plan, 13-week development timeline, and clear performance
+targets. It also provides a strong foundation for future work on larger vocabularies,
+continuous recognition, and full sign language translation when more time and more
+diverse data become available (Camgoz et al., 2020; Forster et al., 2014).
+
+Figure 1: Block Diagram of Hear My Hands
+
+Figure 2: Dataset Process
+
+Figure 3:Succes Rate based on other research.
+
+Figure 4: System Detecting Right Hand Movement
+
+Figure 5: Sign Language Intrepretor Interface
+
+References
+Bragg, D., Koller, O., Bellard, M., Berke, L., Boudreault, P., Braffort, A., Caselli, N.,
+Huenerfauth, M., Kacorri, H., Verhoef, T., Vogler, C., & Ringel Morris, M. (2019). Sign language
+recognition, generation, and translation: An interdisciplinary perspective. In Proceedings of the
+21st International ACM SIGACCESS Conference on Computers and Accessibility (pp. 16–31).
+Association for Computing Machinery. doi: 10.1145/3308561.3353774
+Camgoz, N. C., Kindiroglu, A. A., Karabuklu, S., Kelepir, M., Ozsoy, A. S., & Akarun, L.
+(2016). BosphorusSign: A Turkish sign language recognition corpus in health and finance
+domains. In Proceedings of the Tenth International Conference on Language Resources and
+Evaluation (LREC'16) (pp. 1383–1388). European Language Resources Association.
+
+Camgoz, N. C., Hadfield, S., Koller, O., Ney, H., & Bowden, R. (2018). Neural sign language
+translation. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition (pp. 7784–7793). doi: 10.1109/CVPR.2018.00812
+Camgoz, N. C., Koller, O., Hadfield, S., & Bowden, R. (2020). Sign language transformers: Joint
+end-to-end sign language recognition and translation. In Proceedings of the IEEE/CVF
+Conference on Computer Vision and Pattern Recognition (pp. 10023–10033). doi:
+10.1109/CVPR42600.2020.01004
+Cui, R., Liu, H., & Zhang, C. (2019). A deep neural framework for continuous sign language
+recognition by iterative training. IEEE Transactions on Multimedia, 21(7), 1880–1891. doi:
+10.1109/TMM.2018.2889563
+Forster, J., Schmidt, C., Koller, O., Bellgardt, M., & Ney, H. (2014). Extensions of the sign
+language recognition and translation corpus RWTH-PHOENIX-Weather. In Proceedings of the
+Ninth International Conference on Language Resources and Evaluation (LREC'14) (pp. 1911–
+1916). European Language Resources Association.
+Li, D., Rodriguez Opazo, C., Yu, X., & Li, H. (2020). Word-level deep sign language recognition
+from video: A new large-scale dataset and methods comparison. In Proceedings of the IEEE/CVF
+Winter Conference on Applications of Computer Vision (pp. 1459–1469). doi:
+10.1109/WACV45572.2020.9093512
+Liang, Z., Li, H., & Chai, J. (2023). Sign language translation: A survey of approaches and
+techniques. Electronics, 12(12), 2678. doi: 10.3390/electronics12122678
+Rastgoo, R., Kiani, K., & Escalera, S. (2021). Sign language recognition - A deep survey. Expert
+Systems with Applications, 164, 113794. doi: 10.1016/J.ESWA.2020.113794
+
+Sincan, O. M., & Keles, H. Y. (2020). AUTSL: A large scale multi-modal Turkish sign language
+dataset and baseline methods. IEEE Access, 8, 181340–181355. doi:
+10.1109/ACCESS.2020.3028072
+Vaezi Joze, H. R., & Koller, O. (2018). MS-ASL: A large-scale data set and benchmark for
+understanding American Sign Language [Preprint]. arXiv. doi: 10.48550/arXiv.1812.01053
+Zhang, F., Bazarevsky, V., Vakunov, A., Tkachenka, A., Sung, G., Chang, C.-L., & Grundmann,
+M. (2020). MediaPipe Hands: On-device real-time hand tracking [Preprint]. arXiv. doi:
+10.48550/arXiv.2006.10214
+
+
