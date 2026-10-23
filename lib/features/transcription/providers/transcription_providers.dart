@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/deepgram_service.dart';
+import '../data/transcript_merge.dart';
 import '../domain/models/transcript_entry.dart';
+import '../domain/transcript_formatter.dart';
 import '../../audio/data/audio_capture_service.dart';
 import '../../settings/providers/settings_providers.dart';
 
@@ -43,6 +45,12 @@ class TranscriptionState {
     }
     return finals.trim();
   }
+
+  /// Final entries as `Speaker N: text` lines (consecutive same-speaker lines
+  /// merged), plus any in-flight interim text. Fed to Gemini so it can tell
+  /// who asked what.
+  String get labelledTranscript =>
+      TranscriptFormatter.labelled(entries, interim: currentInterim);
 }
 
 class TranscriptionNotifier extends StateNotifier<TranscriptionState> {
@@ -61,7 +69,10 @@ class TranscriptionNotifier extends StateNotifier<TranscriptionState> {
     }
 
     state = state.copyWith(error: null);
-    final connected = await _deepgramService.connect(apiKey);
+    final connected = await _deepgramService.connect(
+      apiKey,
+      separateChannels: _ref.read(settingsNotifierProvider).separateVoices,
+    );
     if (!connected) {
       state = state.copyWith(isConnected: false, error: 'Failed to connect to Deepgram transcription service.');
       return;
@@ -79,8 +90,8 @@ class TranscriptionNotifier extends StateNotifier<TranscriptionState> {
     _transcriptSub?.cancel();
     _transcriptSub = _deepgramService.transcriptStream.listen((entry) {
       if (entry.isFinal) {
-        final updatedList = List<TranscriptEntry>.from(state.entries)..add(entry);
-        state = state.copyWith(entries: updatedList, currentInterim: '');
+        // two channels arrive interleaved and the mic can echo the call
+        state = state.copyWith(entries: TranscriptMerge.add(state.entries, entry), currentInterim: '');
       } else {
         state = state.copyWith(currentInterim: entry.text);
       }
@@ -98,6 +109,7 @@ class TranscriptionNotifier extends StateNotifier<TranscriptionState> {
   }
 
   void clearTranscript() {
+    _deepgramService.resetTimeline();
     state = TranscriptionState(entries: []);
   }
 

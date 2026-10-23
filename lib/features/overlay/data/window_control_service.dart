@@ -5,6 +5,8 @@ import 'package:window_manager/window_manager.dart';
 import 'package:hotkey_manager/hotkey_manager.dart';
 import '../../../core/constants/app_constants.dart';
 
+enum WindowShape { zen, compact, workspace }
+
 class WindowControlService {
   static final WindowControlService instance = WindowControlService._();
   WindowControlService._();
@@ -34,6 +36,33 @@ class WindowControlService {
     });
 
     await _registerGlobalHotkeys();
+    await enableScreenProtection();
+  }
+
+  Offset? _zenPosition;
+
+  static const Size zenSize = Size(420, 680);
+  static const Size compactSize = Size(380, 56);
+  static const Size workspaceSize = Size(1100, 760);
+
+  /// Resizes the single app window for a UI mode. [remember] stores the
+  /// current position before leaving a zen shape so it can be restored.
+  /// Screen protection is a property of the window and survives resizing; it
+  /// is re-asserted anyway as a safety net.
+  Future<void> applyShellMode(WindowShape shape, {bool remember = true}) async {
+    if (shape == WindowShape.workspace) {
+      if (remember) _zenPosition = await windowManager.getPosition();
+      await windowManager.setMinimumSize(const Size(900, 600));
+      await windowManager.setAlwaysOnTop(false);
+      await windowManager.setSize(workspaceSize);
+      await windowManager.center();
+    } else {
+      await windowManager.setMinimumSize(const Size(320, 200));
+      await windowManager.setAlwaysOnTop(true);
+      await windowManager.setSize(shape == WindowShape.compact ? compactSize : zenSize);
+      final pos = _zenPosition;
+      if (pos != null) await windowManager.setPosition(pos);
+    }
     await enableScreenProtection();
   }
 

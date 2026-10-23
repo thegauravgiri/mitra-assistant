@@ -49,6 +49,24 @@ class HistoryRepository {
     }
   }
 
+  /// Replace a stored session in place (keeps its list position), unlike
+  /// [saveSession] which moves it to the top.
+  Future<void> updateSession(MeetingSession session) async {
+    try {
+      final currentList = await getHistory();
+      final updated = [
+        for (final s in currentList) s.id == session.id ? session : s,
+      ];
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        AppConstants.prefMeetingHistory,
+        jsonEncode(updated.map((s) => s.toJson()).toList()),
+      );
+    } catch (e) {
+      AppLogger.error('Error updating meeting session in history', e);
+    }
+  }
+
   Future<void> deleteSession(String id) async {
     try {
       final currentList = await getHistory();

@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../coaching/domain/models/goal.dart';
 import '../data/settings_repository.dart';
 
 class SettingsState {
@@ -8,6 +10,12 @@ class SettingsState {
   final String selectedAudioDevice;
   final bool captureSystemAudio;
   final bool isLoaded;
+  final String myName;
+  final List<Goal> goals;
+
+  /// Send the mic and the call on separate channels, so "you" is known exactly.
+  /// Off = one mixed channel (cheaper, but speakers are only guessed).
+  final bool separateVoices;
 
   SettingsState({
     required this.deepgramApiKey,
@@ -16,6 +24,9 @@ class SettingsState {
     this.selectedAudioDevice = '',
     this.captureSystemAudio = true,
     this.isLoaded = false,
+    this.myName = '',
+    this.goals = const [],
+    this.separateVoices = true,
   });
 
   SettingsState copyWith({
@@ -25,6 +36,9 @@ class SettingsState {
     String? selectedAudioDevice,
     bool? captureSystemAudio,
     bool? isLoaded,
+    String? myName,
+    List<Goal>? goals,
+    bool? separateVoices,
   }) {
     return SettingsState(
       deepgramApiKey: deepgramApiKey ?? this.deepgramApiKey,
@@ -33,6 +47,9 @@ class SettingsState {
       selectedAudioDevice: selectedAudioDevice ?? this.selectedAudioDevice,
       captureSystemAudio: captureSystemAudio ?? this.captureSystemAudio,
       isLoaded: isLoaded ?? this.isLoaded,
+      myName: myName ?? this.myName,
+      goals: goals ?? this.goals,
+      separateVoices: separateVoices ?? this.separateVoices,
     );
   }
 }
@@ -56,6 +73,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
     final interval = await _repository.getAnalysisIntervalSec();
     final device = await _repository.getAudioInputDevice();
     final systemAudio = await _repository.getCaptureSystemAudio();
+    final myName = await _repository.getMyName();
+    final goals = await _repository.getGoals();
+    final separate = await _repository.getSeparateVoices();
 
     state = SettingsState(
       deepgramApiKey: deepgram,
@@ -64,6 +84,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       selectedAudioDevice: device,
       captureSystemAudio: systemAudio,
       isLoaded: true,
+      myName: myName,
+      goals: goals,
+      separateVoices: separate,
     );
   }
 
@@ -85,6 +108,24 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   Future<void> updateSelectedAudioDevice(String deviceId) async {
     await _repository.setAudioInputDevice(deviceId);
     state = state.copyWith(selectedAudioDevice: deviceId);
+  }
+
+  Future<void> updateSeparateVoices(bool enabled) async {
+    await _repository.setSeparateVoices(enabled);
+    state = state.copyWith(separateVoices: enabled);
+  }
+
+  Future<void> updateMyName(String name) async {
+    await _repository.setMyName(name.trim());
+    state = state.copyWith(myName: name.trim());
+  }
+
+  /// Replaces the goal list (max [AppConstants.maxGoals], one per type).
+  Future<void> updateGoals(List<Goal> goals) async {
+    final seen = <GoalType>{};
+    final unique = [for (final g in goals) if (seen.add(g.type)) g].take(AppConstants.maxGoals).toList();
+    await _repository.setGoals(unique);
+    state = state.copyWith(goals: unique);
   }
 
   Future<void> updateCaptureSystemAudio(bool enabled) async {

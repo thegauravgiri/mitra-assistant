@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../providers/transcription_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/design_tokens.dart';
+import '../../../core/theme/speaker_colors.dart';
 import '../../../core/widgets/empty_state.dart';
 
 class TranscriptView extends ConsumerStatefulWidget {
@@ -63,6 +64,22 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 children: [
                   Row(
                     children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: SpeakerColors.forIndex(entry.speakerIndex).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(AppRadius.sm - 2),
+                        ),
+                        child: Text(
+                          entry.speaker,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: SpeakerColors.forIndex(entry.speakerIndex),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(

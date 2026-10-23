@@ -72,6 +72,10 @@ class _InsightViewState extends ConsumerState<InsightView> {
           return '❓ Questions';
         case InsightCategory.actionItem:
           return '✅ Action Items';
+        case InsightCategory.answer:
+          return '💬 Answers';
+        case InsightCategory.unansweredQuestion:
+          return '🔔 Unanswered';
       }
     }
     return '${_selectedCategories.length} Categories Selected';
@@ -119,9 +123,13 @@ class _InsightViewState extends ConsumerState<InsightView> {
                   children: [
                     const Icon(Icons.auto_awesome_rounded, size: 14, color: AppTheme.primaryAccent),
                     const SizedBox(width: AppSpacing.xs + 2),
-                    const Text(
-                      'AI Copilot Insights',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                    const Expanded(
+                      child: Text(
+                        'AI Copilot Insights',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                      ),
                     ),
                     if (state.isAnalyzing) ...[
                       const SizedBox(width: AppSpacing.sm),
@@ -131,7 +139,7 @@ class _InsightViewState extends ConsumerState<InsightView> {
                         child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryAccent),
                       ),
                     ],
-                    const Spacer(),
+                    const SizedBox(width: AppSpacing.sm),
                     Material(
                       color: Colors.transparent,
                       child: InkWell(
@@ -291,6 +299,12 @@ class _InsightViewState extends ConsumerState<InsightView> {
                                   break;
                                 case InsightCategory.actionItem:
                                   title = '✅ Action Items';
+                                  break;
+                                case InsightCategory.answer:
+                                  title = '💬 Answers';
+                                  break;
+                                case InsightCategory.unansweredQuestion:
+                                  title = '🔔 Unanswered';
                                   break;
                               }
 
@@ -594,6 +608,10 @@ class _InsightCard extends StatelessWidget {
         return AppTheme.warningAccent;
       case InsightCategory.actionItem:
         return AppTheme.cyanAccent;
+      case InsightCategory.answer:
+        return AppTheme.primaryAccentDark;
+      case InsightCategory.unansweredQuestion:
+        return AppTheme.panicAccent;
     }
   }
 
@@ -607,6 +625,10 @@ class _InsightCard extends StatelessWidget {
         return 'QUESTION';
       case InsightCategory.actionItem:
         return 'ACTION ITEM';
+      case InsightCategory.answer:
+        return 'ANSWER';
+      case InsightCategory.unansweredQuestion:
+        return 'UNANSWERED';
     }
   }
 
@@ -620,6 +642,10 @@ class _InsightCard extends StatelessWidget {
         return Icons.help_outline_rounded;
       case InsightCategory.actionItem:
         return Icons.check_circle_outline_rounded;
+      case InsightCategory.answer:
+        return Icons.chat_bubble_outline_rounded;
+      case InsightCategory.unansweredQuestion:
+        return Icons.notification_important_outlined;
     }
   }
 

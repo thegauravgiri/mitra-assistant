@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/utils/logger.dart';
 import '../../../core/utils/text_similarity.dart';
 import '../../documents/data/document_relevance_service.dart';
 import '../../documents/providers/document_providers.dart';
+import '../../meeting_graph/data/meeting_recall_service.dart';
+import '../../meeting_graph/providers/meeting_graph_providers.dart';
 import '../data/gemini_service.dart';
+import '../data/transcript_window.dart';
 import '../domain/models/insight.dart';
 import '../../transcription/providers/transcription_providers.dart';
 import '../../settings/providers/settings_providers.dart';
@@ -37,7 +41,14 @@ class AiNotifier extends StateNotifier<AiState> {
   String _lastActiveDocSignature = '';
 
   static const int _maxInsightsCount = 20;
-  static const int _maxTranscriptCharLength = 3000;
+  static const int _maxTranscriptCharLength = 4500; // the "recent conversation" window
+  static const int _summaryChunkChars = 2500; // summarise once this much new text has left the window
+
+  // Running notes of the meeting before the recent window, so insights know
+  // what was said earlier (needed to catch unanswered questions in long calls).
+  String _meetingSummary = '';
+  int _summarisedUpTo = 0;
+  bool _summarising = false;
 
   AiNotifier(this._ref) : super(AiState(insights: []));
 
@@ -65,14 +76,12 @@ class AiNotifier extends StateNotifier<AiState> {
     }
 
     final transcriptState = _ref.read(transcriptionNotifierProvider);
-    final fullText = transcriptState.fullTextTranscript.trim();
+    final fullText = transcriptState.labelledTranscript.trim();
     final documentState = _ref.read(documentNotifierProvider);
 
-    // Compute sliding window transcript portion
-    String transcriptSlice = fullText;
-    if (fullText.length > _maxTranscriptCharLength) {
-      transcriptSlice = fullText.substring(fullText.length - _maxTranscriptCharLength);
-    }
+    // Recent window, starting on a line boundary so no line is cut in half
+    final transcriptSlice = _recentWindow(fullText);
+    _maybeUpdateMeetingSummary(fullText, apiKey);
 
     // Evaluate relevant document context
     final relevanceResult = _relevanceService.getRelevantContext(
@@ -106,6 +115,11 @@ class AiNotifier extends StateNotifier<AiState> {
     _lastActiveDocSignature = relevanceResult.activeSignature;
     state = state.copyWith(isAnalyzing: true, error: null);
 
+    // Newest final line the insight can be based on; used for latency.
+    final latestFinal = transcriptState.entries.isEmpty
+        ? null
+        : transcriptState.entries.last.timestamp;
+
     try {
       final existingTitles = state.insights.map((i) => i.title).take(15).toList();
       final newInsights = await _geminiService.analyzeTranscript(
@@ -113,12 +127,24 @@ class AiNotifier extends StateNotifier<AiState> {
         transcript: transcriptSlice,
         existingInsightTitles: existingTitles,
         documentContext: relevanceResult.documentContext,
+        earlierMeetings: MeetingRecallService.recall(
+          transcriptSlice,
+          _ref.read(meetingGraphProvider),
+        ),
+        meetingSoFar: _meetingSummary,
       );
 
       // Client-side multi-pass semantic deduplication fallback
+      final latencyMs = latestFinal == null
+          ? null
+          : DateTime.now().difference(latestFinal).inMilliseconds;
       final uniqueInsights = newInsights
           .where((candidate) => !_isDuplicate(candidate, state.insights))
+          .map((i) => i.copyWith(latencyMs: latencyMs))
           .toList();
+      if (latencyMs != null && uniqueInsights.isNotEmpty) {
+        AppLogger.log('Insight latency: ${latencyMs}ms');
+      }
 
       if (uniqueInsights.isNotEmpty) {
         var updatedList = List<Insight>.from(uniqueInsights)
@@ -204,6 +230,8 @@ class AiNotifier extends StateNotifier<AiState> {
     }
 
     final transcriptState = _ref.read(transcriptionNotifierProvider);
+    final labelled = transcriptState.labelledTranscript;
+    final recent = _recentWindow(labelled);
     final fullText = transcriptState.fullTextTranscript;
     final documentState = _ref.read(documentNotifierProvider);
 
@@ -218,9 +246,14 @@ class AiNotifier extends StateNotifier<AiState> {
     try {
       final newInsights = await _geminiService.askCopilotQuestion(
         apiKey: apiKey,
-        transcript: fullText,
+        transcript: recent,
         question: question,
         documentContext: relevanceResult.documentContext,
+        earlierMeetings: MeetingRecallService.recall(
+          '$recent $question',
+          _ref.read(meetingGraphProvider),
+        ),
+        meetingSoFar: _meetingSummary,
       );
 
       final uniqueInsights = newInsights
@@ -254,9 +287,40 @@ class AiNotifier extends StateNotifier<AiState> {
     _analysisTimer = null;
   }
 
+  String _recentWindow(String fullText) => TranscriptWindow.recent(fullText, _maxTranscriptCharLength);
+
+  /// Folds text that has just left the recent window into the running notes.
+  /// Runs in the background; the analysis never waits for it.
+  void _maybeUpdateMeetingSummary(String fullText, String apiKey) {
+    if (_summarising ||
+        !TranscriptWindow.shouldSummarise(
+          fullText,
+          max: _maxTranscriptCharLength,
+          summarisedUpTo: _summarisedUpTo,
+          chunk: _summaryChunkChars,
+        )) {
+      return;
+    }
+
+    final upTo = TranscriptWindow.recentStart(fullText, _maxTranscriptCharLength);
+    final portion = fullText.substring(_summarisedUpTo, upTo);
+    _summarising = true;
+    _geminiService
+        .updateMeetingSummary(apiKey: apiKey, previousNotes: _meetingSummary, newTranscript: portion)
+        .then((notes) {
+      if (!mounted) return;
+      if (notes.isNotEmpty) {
+        _meetingSummary = notes;
+        _summarisedUpTo = upTo;
+      }
+    }).whenComplete(() => _summarising = false);
+  }
+
   void clearInsights() {
     _lastAnalyzedTranscript = '';
     _lastActiveDocSignature = '';
+    _meetingSummary = '';
+    _summarisedUpTo = 0;
     state = AiState(insights: [], error: null);
   }
 

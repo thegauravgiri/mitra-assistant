@@ -7,6 +7,8 @@ import '../../../core/utils/logger.dart';
 
 class GeminiService {
   GenerativeModel? _model;
+  GenerativeModel? _graphModel;
+  String? _graphApiKey;
   String? _currentApiKey;
 
   void _initModel(String apiKey) {
@@ -87,6 +89,12 @@ class GeminiService {
           case 'actionItem':
             category = InsightCategory.actionItem;
             break;
+          case 'answer':
+            category = InsightCategory.answer;
+            break;
+          case 'unansweredQuestion':
+            category = InsightCategory.unansweredQuestion;
+            break;
           default:
             category = InsightCategory.suggestion;
         }
@@ -111,6 +119,8 @@ class GeminiService {
     required String transcript,
     List<String> existingInsightTitles = const [],
     String documentContext = '',
+    String earlierMeetings = '',
+    String meetingSoFar = '',
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Gemini API key missing in Settings');
@@ -124,6 +134,8 @@ class GeminiService {
         transcript,
         existingInsights: existingInsightTitles,
         documentContext: documentContext,
+        earlierMeetings: earlierMeetings,
+        meetingSoFar: meetingSoFar,
       );
       final response = await _model?.generateContent([Content.text(prompt)]);
       final text = response?.text;
@@ -151,6 +163,8 @@ class GeminiService {
     required String transcript,
     required String question,
     String documentContext = '',
+    String earlierMeetings = '',
+    String meetingSoFar = '',
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Gemini API key missing in Settings');
@@ -164,6 +178,8 @@ class GeminiService {
         transcript,
         question,
         documentContext: documentContext,
+        earlierMeetings: earlierMeetings,
+        meetingSoFar: meetingSoFar,
       );
       final response = await _model?.generateContent([Content.text(prompt)]);
       final text = response?.text;
@@ -179,28 +195,107 @@ class GeminiService {
     }
   }
 
-  /// One-shot plain text document summarization call
+  /// One-shot plain-text call with its own system prompt (running notes,
+  /// document summaries). Returns '' on failure instead of throwing, because
+  /// these are enrichment steps that must never block the meeting.
+  Future<String> generateText({
+    required String apiKey,
+    required String systemPrompt,
+    required String prompt,
+    double temperature = 0.2,
+  }) async {
+    if (apiKey.trim().isEmpty || prompt.trim().isEmpty) return '';
+    try {
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash',
+        apiKey: apiKey.trim(),
+        systemInstruction: Content.system(systemPrompt),
+        generationConfig: GenerationConfig(temperature: temperature),
+      );
+      final response = await model.generateContent([Content.text(prompt)]);
+      return response.text?.trim() ?? '';
+    } catch (e) {
+      AppLogger.error('Text generation failed', e);
+      return '';
+    }
+  }
+
+  /// Updates the running notes of a live meeting with a new stretch of transcript.
+  Future<String> updateMeetingSummary({
+    required String apiKey,
+    required String previousNotes,
+    required String newTranscript,
+  }) =>
+      generateText(
+        apiKey: apiKey,
+        systemPrompt: PromptTemplates.meetingSummarySystemPrompt,
+        prompt: PromptTemplates.buildMeetingSummaryPrompt(previousNotes, newTranscript),
+      );
+
+  /// Summary of an uploaded document. Very long documents are summarised from
+  /// their start and end, so the call stays within limits.
   Future<String> summarizeDocument({
     required String apiKey,
     required String text,
-  }) async {
-    if (apiKey.trim().isEmpty || text.trim().isEmpty) return '';
+  }) {
+    const max = 60000;
+    final body = text.length <= max ? text : '${text.substring(0, max ~/ 2)}\n[...]\n${text.substring(text.length - max ~/ 2)}';
+    return generateText(
+      apiKey: apiKey,
+      systemPrompt: PromptTemplates.documentSummarySystemPrompt,
+      prompt: PromptTemplates.buildDocumentSummaryPrompt(body),
+    );
+  }
 
-    try {
-      final textModel = GenerativeModel(
+  /// Raw JSON text for one graph-extraction batch (parsed by
+  /// `GraphExtractorService`). Own model: low temperature, graph system prompt.
+  Future<String> generateGraphJson({
+    required String apiKey,
+    required String prompt,
+  }) async {
+    final key = apiKey.trim();
+    if (key.isEmpty) throw Exception('Gemini API key missing in Settings');
+    if (_graphModel == null || _graphApiKey != key) {
+      _graphApiKey = key;
+      _graphModel = GenerativeModel(
         model: 'gemini-2.5-flash',
-        apiKey: apiKey.trim(),
+        apiKey: key,
+        systemInstruction: Content.system(PromptTemplates.graphSystemPrompt),
         generationConfig: GenerationConfig(
-          temperature: 0.2,
+          responseMimeType: 'application/json',
+          temperature: 0.1,
         ),
       );
+    }
+    final response = await _graphModel?.generateContent([Content.text(prompt)]);
+    return response?.text ?? '';
+  }
 
-      final prompt = PromptTemplates.buildDocumentSummaryPrompt(text);
-      final response = await textModel.generateContent([Content.text(prompt)]);
-      return response.text?.trim() ?? '';
+  /// One-off JSON-mode call with its own system prompt (digest, coaching).
+  /// Low frequency, so the model object is not cached.
+  Future<String> generateStructured({
+    required String apiKey,
+    required String systemPrompt,
+    required String prompt,
+    double temperature = 0.2,
+  }) async {
+    final key = apiKey.trim();
+    if (key.isEmpty) throw Exception('Gemini API key missing in Settings');
+    final model = GenerativeModel(
+      model: 'gemini-2.5-flash',
+      apiKey: key,
+      systemInstruction: Content.system(systemPrompt),
+      generationConfig: GenerationConfig(
+        responseMimeType: 'application/json',
+        temperature: temperature,
+      ),
+    );
+    try {
+      final response = await model.generateContent([Content.text(prompt)]);
+      return response.text ?? '';
     } catch (e) {
-      AppLogger.error('Error during document summarization', e);
-      return '';
+      AppLogger.error('Structured Gemini call failed', e);
+      throw Exception(e.toString().replaceAll('Exception: ', ''));
     }
   }
 }

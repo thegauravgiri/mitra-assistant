@@ -17,6 +17,7 @@ class SettingsView extends ConsumerStatefulWidget {
 class _SettingsViewState extends ConsumerState<SettingsView> {
   late TextEditingController _deepgramController;
   late TextEditingController _geminiController;
+  late TextEditingController _nameController;
   bool _screenProtectionEnabled = true;
 
   @override
@@ -25,12 +26,14 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     final settings = ref.read(settingsNotifierProvider);
     _deepgramController = TextEditingController(text: settings.deepgramApiKey);
     _geminiController = TextEditingController(text: settings.geminiApiKey);
+    _nameController = TextEditingController(text: settings.myName);
   }
 
   @override
   void dispose() {
     _deepgramController.dispose();
     _geminiController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -77,6 +80,50 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                   },
                 ),
               ],
+            ),
+          ),
+
+          const SizedBox(height: AppSpacing.md),
+
+          _SettingsCard(
+            title: 'Speaker separation',
+            icon: Icons.record_voice_over_rounded,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Keep my voice separate from the call', style: TextStyle(fontSize: 13, color: AppTheme.textPrimary)),
+                      SizedBox(height: 4),
+                      Text(
+                        'Sends your microphone and the call as two channels, so "You" is always labelled correctly and '
+                        'the other people are told apart on the call channel. Takes effect at the next meeting. '
+                        'Deepgram bills two channels, so this costs about twice as much. Use headphones: if the call '
+                        'plays through speakers, your mic hears it too (the app drops most of those duplicates).',
+                        style: TextStyle(fontSize: 11, height: 1.4, color: AppTheme.textMuted),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Switch(
+                  value: settings.separateVoices,
+                  onChanged: (v) => ref.read(settingsNotifierProvider.notifier).updateSeparateVoices(v),
+                ),
+              ],
+            ),
+          ),
+
+          _SettingsCard(
+            title: 'Profile',
+            icon: Icons.person_rounded,
+            child: AppTextField(
+              controller: _nameController,
+              labelText: 'My name (used for coaching and progress across meetings)',
+              hintText: 'e.g. John',
+              onChanged: (val) => ref.read(settingsNotifierProvider.notifier).updateMyName(val),
             ),
           ),
 

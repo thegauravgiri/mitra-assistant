@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../../ai_engine/domain/models/insight.dart';
+import '../../coaching/data/participation_analyzer.dart';
+import '../../coaching/domain/models/coaching_report.dart';
 import '../data/csv_export_service.dart';
 import '../data/history_repository.dart';
 import '../domain/models/meeting_session.dart';
@@ -53,13 +56,19 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     }
   }
 
-  Future<void> saveCurrentMeeting({
+  /// Saves the meeting with participation metrics already computed. Returns
+  /// the saved session (or null for an empty meeting) so the caller can ask
+  /// for the slower, AI-written reviews afterwards.
+  Future<MeetingSession?> saveCurrentMeeting({
     required String title,
     required String aiSummary,
     required DateTime startTime,
     required List<TranscriptEntry> entries,
+    List<Insight> insights = const [],
+    String? meSpeakerKey,
+    Map<String, String> speakerNames = const {},
   }) async {
-    if (entries.isEmpty) return; // Don't save empty meetings
+    if (entries.isEmpty) return null; // Don't save empty meetings
 
     final session = MeetingSession(
       id: const Uuid().v4(),
@@ -68,10 +77,26 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
       startTime: startTime,
       endTime: DateTime.now(),
       entries: entries,
+      insights: insights,
+      meSpeakerKey: meSpeakerKey,
+      speakerNames: speakerNames,
+      coachingReport: CoachingReport(
+        metrics: ParticipationAnalyzer.analyze(entries),
+        generatedAt: DateTime.now(),
+      ),
     );
 
     await _repository.saveSession(session);
     await loadHistory();
+    return session;
+  }
+
+  /// Persists changes to an existing session (reviews, speaker names).
+  Future<void> updateSession(MeetingSession session) async {
+    await _repository.updateSession(session);
+    state = state.copyWith(
+      sessions: [for (final s in state.sessions) s.id == session.id ? session : s],
+    );
   }
 
   Future<void> deleteSession(String id) async {

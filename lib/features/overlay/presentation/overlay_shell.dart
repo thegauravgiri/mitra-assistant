@@ -1,33 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:window_manager/window_manager.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'compact_mode.dart';
 import 'expanded_mode.dart';
+import 'workspace_shell.dart';
+import '../providers/shell_providers.dart';
 import '../../../core/theme/design_tokens.dart';
 
-class OverlayShell extends StatefulWidget {
+class OverlayShell extends ConsumerWidget {
   const OverlayShell({super.key});
 
   @override
-  State<OverlayShell> createState() => _OverlayShellState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mode = ref.watch(shellNotifierProvider.select((s) => s.mode));
+    final shell = ref.read(shellNotifierProvider.notifier);
 
-class _OverlayShellState extends State<OverlayShell> {
-  bool _isCompact = false;
-
-  void _toggleCompactMode() async {
-    setState(() {
-      _isCompact = !_isCompact;
-    });
-
-    if (_isCompact) {
-      await windowManager.setSize(const Size(380, 56));
-    } else {
-      await windowManager.setSize(const Size(420, 680));
+    final Widget child;
+    switch (mode) {
+      case ShellMode.zenCompact:
+        child = CompactModeView(
+          key: const ValueKey('compact_view'),
+          onExpand: shell.toggleCompact,
+        );
+      case ShellMode.workspace:
+        child = const WorkspaceShell(key: ValueKey('workspace_view'));
+      case ShellMode.zen:
+        child = ExpandedModeView(
+          key: const ValueKey('zen_view'),
+          onCollapse: shell.toggleCompact,
+          onOpenWorkspace: () => shell.openWorkspace(),
+          onOpenSettings: () => shell.openWorkspace(page: WorkspacePage.settings),
+        );
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: Scaffold(
@@ -36,24 +40,14 @@ class _OverlayShellState extends State<OverlayShell> {
           duration: AppDuration.normal,
           switchInCurve: Curves.easeInOut,
           switchOutCurve: Curves.easeInOut,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(
-              opacity: animation,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.96, end: 1.0).animate(animation),
-                child: child,
-              ),
-            );
-          },
-          child: _isCompact
-              ? CompactModeView(
-                  key: const ValueKey('compact_view'),
-                  onExpand: _toggleCompactMode,
-                )
-              : ExpandedModeView(
-                  key: const ValueKey('expanded_view'),
-                  onCollapse: _toggleCompactMode,
-                ),
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.96, end: 1.0).animate(animation),
+              child: child,
+            ),
+          ),
+          child: child,
         ),
       ),
     );

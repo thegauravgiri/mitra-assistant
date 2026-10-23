@@ -1,5 +1,6 @@
 import '../../../core/constants/app_constants.dart';
 import '../../../core/utils/text_similarity.dart';
+import '../domain/models/doc_graph.dart';
 import '../domain/models/uploaded_document.dart';
 
 class DocumentRelevanceResult {
@@ -51,7 +52,15 @@ class DocumentRelevanceService {
 
       if (searchTokens.isEmpty) continue;
 
-      final docScore = TextSimilarity.calculateJaccardSimilarity(searchTokens, doc.keywords);
+      var docScore = TextSimilarity.calculateJaccardSimilarity(searchTokens, doc.keywords);
+      // The graph can admit a document whose overall keyword overlap is low
+      // but which names an entity discussed in the meeting.
+      final graph = doc.graphStatus == GraphStatus.ready ? doc.graph : null;
+      if (graph != null && graph.seedNodes(searchTokens).isNotEmpty) {
+        docScore = docScore > AppConstants.graphDocMatchScore
+            ? docScore
+            : AppConstants.graphDocMatchScore;
+      }
       if (docScore >= threshold) {
         matches.add(_DocMatch(doc: doc, score: docScore, isPinned: false));
       }
@@ -87,12 +96,25 @@ class DocumentRelevanceService {
 
       // Find top matching chunks
       if (doc.chunks.isNotEmpty) {
-        final ratedChunks = doc.chunks.map((chunk) {
-          final chunkScore = searchTokens.isEmpty
-              ? 0.0
-              : TextSimilarity.calculateJaccardSimilarity(searchTokens, chunk.keywords);
-          return _ChunkMatch(chunk: chunk, score: chunkScore);
-        }).toList();
+        final graph = doc.graphStatus == GraphStatus.ready ? doc.graph : null;
+        final boosts = graph == null
+            ? const <int, double>{}
+            : graph.chunkBoosts(
+                searchTokens,
+                seedBoost: AppConstants.graphSeedBoost,
+                neighbourBoost: AppConstants.graphNeighbourBoost,
+              );
+        final ratedChunks = [
+          for (var i = 0; i < doc.chunks.length; i++)
+            _ChunkMatch(
+              chunk: doc.chunks[i],
+              score: (searchTokens.isEmpty
+                      ? 0.0
+                      : TextSimilarity.calculateJaccardSimilarity(
+                          searchTokens, doc.chunks[i].keywords)) +
+                  (boosts[i] ?? 0),
+            ),
+        ];
 
         ratedChunks.sort((a, b) => b.score.compareTo(a.score));
 
