@@ -12,6 +12,7 @@ class AudioCaptureService: NSObject, FlutterStreamHandler {
   private var isCapturing = false
   private var captureSystemAudio: Bool = true
   private var selectedDeviceUID: String? = nil
+  private let mixer = PcmMixer()
 
   // ScreenCaptureKit system audio wrapper for macOS 13+ stored as Any? for deployment target compatibility
   private var systemAudioCapture: Any?
@@ -140,11 +141,17 @@ class AudioCaptureService: NSObject, FlutterStreamHandler {
   }
 
   private func performStartCapture(result: FlutterResult?) {
+    // Mic (left) and system audio (right) go out as ONE stereo stream. Sending each
+    // source's chunks straight to Deepgram would interleave them in time (audio
+    // at double speed) and break both transcription and speaker separation.
+    mixer.start { [weak self] data in
+      DispatchQueue.main.async { self?.eventSink?(FlutterStandardTypedData(bytes: data)) }
+    }
     setupAudioEngine()
     if captureSystemAudio {
       if #available(macOS 13.0, *) {
         let systemAudio = SystemAudioCapture()
-        systemAudio.start(eventSink: self.eventSink)
+        systemAudio.start { [weak self] data in self?.mixer.push(.system, pcm: data) }
         self.systemAudioCapture = systemAudio
       }
     }
@@ -163,11 +170,17 @@ class AudioCaptureService: NSObject, FlutterStreamHandler {
       systemAudioCapture = nil
     }
 
+    mixer.stop()
     isCapturing = false
     result?(true)
   }
 
   private func setupAudioEngine() {
+    // Switch device BEFORE reading the format: changing the input device can
+    // change the hardware format, and installing a tap with a stale format
+    // throws "Failed to create tap due to format mismatch".
+    applySelectedInputDevice()
+
     let inputNode = audioEngine.inputNode
     let inputFormat = inputNode.outputFormat(forBus: 0)
 
@@ -176,42 +189,15 @@ class AudioCaptureService: NSObject, FlutterStreamHandler {
       return
     }
 
-    applySelectedInputDevice()
-
-    // Target format: 16kHz Mono 16-bit PCM
-    guard let targetFormat = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16000, channels: 1, interleaved: true) else {
-      return
-    }
-
-    guard let converter = AVAudioConverter(from: inputFormat, to: targetFormat) else {
-      return
-    }
+    // Rebuilds its converter from the actual buffer format, so a device or
+    // sample-rate change while running doesn't feed mismatched audio.
+    let converter = PcmConverter()
 
     inputNode.removeTap(onBus: 0)
-    inputNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { [weak self] (buffer, time) in
-      guard let self = self, let eventSink = self.eventSink else { return }
-
-      let capacity = UInt32(Double(buffer.frameLength) * (16000.0 / inputFormat.sampleRate)) + 100
-      guard let convertedBuffer = AVAudioPCMBuffer(pcmFormat: targetFormat, frameCapacity: capacity) else { return }
-
-      var error: NSError?
-      var allSamplesProcessed = false
-
-      converter.convert(to: convertedBuffer, error: &error) { packetCount, outStatus in
-        if allSamplesProcessed {
-          outStatus.pointee = .noDataNow
-          return nil
-        }
-        outStatus.pointee = .haveData
-        allSamplesProcessed = true
-        return buffer
-      }
-
-      if let pcmData = self.bufferToData(buffer: convertedBuffer) {
-        DispatchQueue.main.async {
-          eventSink(FlutterStandardTypedData(bytes: pcmData))
-        }
-      }
+    // format: nil lets the node supply its current format to the tap.
+    inputNode.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak self] (buffer, time) in
+      guard let self = self, let pcmData = converter.int16Mono16k(from: buffer) else { return }
+      self.mixer.push(.mic, pcm: pcmData)
     }
 
     audioEngine.prepare()
@@ -226,7 +212,7 @@ class AudioCaptureService: NSObject, FlutterStreamHandler {
     guard let uid = selectedDeviceUID, let audioUnit = audioEngine.inputNode.audioUnit else { return }
     var deviceID = getAudioObjectID(for: uid)
     if deviceID != kAudioObjectUnknown {
-      AudioUnitSetProperty(
+      let status = AudioUnitSetProperty(
         audioUnit,
         kAudioOutputUnitProperty_CurrentDevice,
         kAudioUnitScope_Global,
@@ -234,6 +220,27 @@ class AudioCaptureService: NSObject, FlutterStreamHandler {
         &deviceID,
         UInt32(MemoryLayout<AudioObjectID>.size)
       )
+      if status != noErr {
+        print("Failed to select input device \(uid): \(status)")
+        return
+      }
+
+      // Re-binding the device changes the hardware (input-side) format, but the
+      // node's output side keeps its old rate (e.g. 44.1kHz speakers vs a 48kHz
+      // mic). AVAudioEngine then fails to start with -10868 (format not
+      // supported). Make the output side match the hardware.
+      var hardwareFormat = audioEngine.inputNode.inputFormat(forBus: 0).streamDescription.pointee
+      let fmtStatus = AudioUnitSetProperty(
+        audioUnit,
+        kAudioUnitProperty_StreamFormat,
+        kAudioUnitScope_Output,
+        1,
+        &hardwareFormat,
+        UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+      )
+      if fmtStatus != noErr {
+        print("Failed to match input node format to hardware: \(fmtStatus)")
+      }
     }
   }
 
@@ -352,21 +359,146 @@ class AudioCaptureService: NSObject, FlutterStreamHandler {
 
     return result
   }
+}
 
-  private func bufferToData(buffer: AVAudioPCMBuffer) -> Data? {
-    let channelCount = Int(buffer.format.channelCount)
-    let length = Int(buffer.frameLength) * channelCount * 2
-    guard let int16Data = buffer.int16ChannelData else { return nil }
-    return Data(bytes: int16Data[0], count: length)
+// MARK: PcmConverter begin
+/// Any PCM buffer -> 16 kHz mono Int16 bytes (what Deepgram expects). The
+/// AVAudioConverter is rebuilt whenever the incoming format changes.
+final class PcmConverter {
+  private let target = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 16000, channels: 1, interleaved: true)!
+  private var converter: AVAudioConverter?
+  private var sourceFormat: AVAudioFormat?
+
+  func int16Mono16k(from buffer: AVAudioPCMBuffer) -> Data? {
+    if converter == nil || sourceFormat != buffer.format {
+      converter = AVAudioConverter(from: buffer.format, to: target)
+      sourceFormat = buffer.format
+    }
+    guard let converter = converter else { return nil }
+
+    let capacity = UInt32(Double(buffer.frameLength) * (16000.0 / buffer.format.sampleRate)) + 100
+    guard let out = AVAudioPCMBuffer(pcmFormat: target, frameCapacity: capacity) else { return nil }
+
+    var error: NSError?
+    var consumed = false
+    converter.convert(to: out, error: &error) { _, status in
+      if consumed {
+        status.pointee = .noDataNow
+        return nil
+      }
+      consumed = true
+      status.pointee = .haveData
+      return buffer
+    }
+    guard error == nil, let ints = out.int16ChannelData, out.frameLength > 0 else { return nil }
+    return Data(bytes: ints[0], count: Int(out.frameLength) * 2)
   }
 }
+// MARK: PcmConverter end
+
+// MARK: PcmMixer begin
+/// Combines microphone and system audio into ONE stereo stream, 16 kHz Int16,
+/// interleaved: left = microphone ("you"), right = system audio (the call).
+/// Keeping them on separate channels lets Deepgram transcribe each on its own,
+/// so who spoke is known exactly instead of guessed from a mixed recording.
+///
+/// Channels must stay sample-aligned with real time. While BOTH sources are
+/// delivering, only as many samples as both have are emitted (nothing is
+/// padded, so neither channel is stretched). A source that has gone quiet for
+/// 500 ms is treated as silent and its channel is filled with zeros. Backlog is
+/// capped at 300 ms so latency cannot build up.
+final class PcmMixer {
+  enum Source { case mic, system }
+
+  private let queue = DispatchQueue(label: "mitra.pcm.mixer")
+  private var mic: [Int16] = []
+  private var system: [Int16] = []
+  private var lastMic = Date.distantPast
+  private var lastSystem = Date.distantPast
+  private var timer: DispatchSourceTimer?
+  private var sink: ((Data) -> Void)?
+
+  static let frameSamples = 1600 // 100 ms at 16 kHz, per channel
+  static let maxBufferedSamples = 4800 // 300 ms
+  static let inactiveAfter: TimeInterval = 0.5
+
+  func start(sink: @escaping (Data) -> Void) {
+    stop()
+    queue.sync {
+      self.sink = sink
+      let t = DispatchSource.makeTimerSource(queue: queue)
+      t.schedule(deadline: .now() + .milliseconds(100), repeating: .milliseconds(100))
+      t.setEventHandler { [weak self] in self?.tick() }
+      t.resume()
+      timer = t
+    }
+  }
+
+  func stop() {
+    queue.sync {
+      timer?.cancel()
+      timer = nil
+      sink = nil
+      mic.removeAll()
+      system.removeAll()
+      lastMic = .distantPast
+      lastSystem = .distantPast
+    }
+  }
+
+  func push(_ source: Source, pcm: Data) {
+    let samples = pcm.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+    let now = Date()
+    queue.async {
+      switch source {
+      case .mic:
+        self.mic.append(contentsOf: samples)
+        self.lastMic = now
+      case .system:
+        self.system.append(contentsOf: samples)
+        self.lastSystem = now
+      }
+      if self.mic.count > PcmMixer.maxBufferedSamples { self.mic.removeFirst(self.mic.count - PcmMixer.maxBufferedSamples) }
+      if self.system.count > PcmMixer.maxBufferedSamples { self.system.removeFirst(self.system.count - PcmMixer.maxBufferedSamples) }
+    }
+  }
+
+  private func tick() {
+    let now = Date()
+    let micActive = now.timeIntervalSince(lastMic) < PcmMixer.inactiveAfter
+    let sysActive = now.timeIntervalSince(lastSystem) < PcmMixer.inactiveAfter
+
+    var n: Int
+    if micActive && sysActive {
+      n = min(mic.count, system.count) // wait for the slower source, never pad
+    } else if micActive {
+      n = mic.count
+    } else if sysActive {
+      n = system.count
+    } else {
+      n = max(mic.count, system.count) // both idle: flush what is left
+    }
+    n = min(n, PcmMixer.frameSamples)
+    guard n > 0, let sink = sink else { return }
+
+    var out = [Int16](repeating: 0, count: n * 2)
+    for i in 0..<n {
+      out[2 * i] = i < mic.count ? mic[i] : 0
+      out[2 * i + 1] = i < system.count ? system[i] : 0
+    }
+    mic.removeFirst(min(n, mic.count))
+    system.removeFirst(min(n, system.count))
+    sink(out.withUnsafeBufferPointer { Data(buffer: $0) })
+  }
+}
+// MARK: PcmMixer end
 
 @available(macOS 13.0, *)
 private class SystemAudioCapture {
   private var stream: SCStream?
   private var streamOutput: AudioStreamOutput?
 
-  func start(eventSink: FlutterEventSink?) {
+  func start(onData: @escaping (Data) -> Void) {
     SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { [weak self] content, error in
       guard let self = self, let content = content, error == nil else { return }
       guard let display = content.displays.first else { return }
@@ -380,12 +512,7 @@ private class SystemAudioCapture {
 
       do {
         self.stream = SCStream(filter: filter, configuration: config, delegate: nil)
-        let output = AudioStreamOutput(onAudioData: { data in
-          guard let eventSink = eventSink else { return }
-          DispatchQueue.main.async {
-            eventSink(FlutterStandardTypedData(bytes: data))
-          }
-        })
+        let output = AudioStreamOutput(onAudioData: onData)
         self.streamOutput = output
         try self.stream?.addStreamOutput(output, type: .audio, sampleHandlerQueue: DispatchQueue.global(qos: .userInteractive))
         self.stream?.startCapture()
@@ -410,19 +537,26 @@ private class AudioStreamOutput: NSObject, SCStreamOutput {
     self.onAudioData = onAudioData
   }
 
+  private let converter = PcmConverter()
+
   func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer, of type: SCStreamOutputType) {
     guard type == .audio, CMSampleBufferDataIsReady(sampleBuffer) else { return }
-    guard let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) else { return }
 
-    var lengthAtOffset = 0
-    var totalLength = 0
-    var dataPointer: UnsafeMutablePointer<Int8>?
+    // ScreenCaptureKit audio is not guaranteed to be 16-bit integers (it is
+    // typically 32-bit float, possibly planar). Read the real format and
+    // convert, instead of forwarding raw bytes as if they were Int16.
+    guard let desc = CMSampleBufferGetFormatDescription(sampleBuffer),
+          var asbd = CMAudioFormatDescriptionGetStreamBasicDescription(desc)?.pointee,
+          let format = AVAudioFormat(streamDescription: &asbd) else { return }
+    let frames = AVAudioFrameCount(CMSampleBufferGetNumSamples(sampleBuffer))
+    guard frames > 0, let pcm = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames) else { return }
+    pcm.frameLength = frames
+    guard CMSampleBufferCopyPCMDataIntoAudioBufferList(
+      sampleBuffer, at: 0, frameCount: Int32(frames), into: pcm.mutableAudioBufferList
+    ) == noErr else { return }
 
-    if CMBlockBufferGetDataPointer(blockBuffer, atOffset: 0, lengthAtOffsetOut: &lengthAtOffset, totalLengthOut: &totalLength, dataPointerOut: &dataPointer) == kCMBlockBufferNoErr {
-      if let dataPointer = dataPointer {
-        let data = Data(bytes: dataPointer, count: totalLength)
-        onAudioData(data)
-      }
+    if let data = converter.int16Mono16k(from: pcm) {
+      onAudioData(data)
     }
   }
 }

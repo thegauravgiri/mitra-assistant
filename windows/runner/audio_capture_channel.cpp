@@ -8,7 +8,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 #include <iostream>
+#include <vector>
 
 namespace {
 
@@ -62,32 +64,82 @@ std::vector<uint8_t> ResampleTo16kMonoPcm(const float* mono_samples, int num_sam
   return out_bytes;
 }
 
-// Sums two 16-bit little-endian PCM buffers with clipping. Output length is the
-// longer of the two; the shorter stream is treated as silence past its end.
-std::vector<uint8_t> MixPcm16(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b) {
-  if (a.empty()) return b;
-  if (b.empty()) return a;
-
-  size_t samples_a = a.size() / 2;
-  size_t samples_b = b.size() / 2;
-  size_t n = std::max(samples_a, samples_b);
-
-  std::vector<uint8_t> out;
-  out.reserve(n * 2);
-  for (size_t i = 0; i < n; ++i) {
-    int32_t sa = (i < samples_a)
-                     ? static_cast<int16_t>(static_cast<uint16_t>(a[2 * i]) | (static_cast<uint16_t>(a[2 * i + 1]) << 8))
-                     : 0;
-    int32_t sb = (i < samples_b)
-                     ? static_cast<int16_t>(static_cast<uint16_t>(b[2 * i]) | (static_cast<uint16_t>(b[2 * i + 1]) << 8))
-                     : 0;
-    int32_t mixed = std::max(-32768, std::min(32767, sa + sb));
-    int16_t pcm = static_cast<int16_t>(mixed);
-    out.push_back(static_cast<uint8_t>(pcm & 0xFF));
-    out.push_back(static_cast<uint8_t>((pcm >> 8) & 0xFF));
+// Combines microphone and loopback audio into ONE stereo stream of 16 kHz
+// 16-bit little-endian PCM, interleaved: left = microphone ("you"), right =
+// loopback (the call). Deepgram transcribes the channels independently, so
+// who spoke is known exactly instead of guessed from a mixed recording.
+//
+// Both channels must stay sample-aligned with real time, so while BOTH sources
+// are delivering only as many samples as both have are emitted (never padded,
+// so neither channel is stretched). A source that has been quiet for 500 ms is
+// treated as silent and its channel is filled with zeros.
+class StereoInterleaver {
+ public:
+  void PushMic(const std::vector<uint8_t>& pcm) {
+    Append(mic_, pcm);
+    last_mic_ = Clock::now();
   }
-  return out;
-}
+
+  void PushLoopback(const std::vector<uint8_t>& pcm) {
+    Append(loop_, pcm);
+    last_loop_ = Clock::now();
+  }
+
+  // Returns interleaved stereo bytes (possibly empty). At most 100 ms per call.
+  std::vector<uint8_t> Take() {
+    const auto now = Clock::now();
+    const bool mic_active = now - last_mic_ < kInactiveAfter;
+    const bool loop_active = now - last_loop_ < kInactiveAfter;
+
+    size_t n;
+    if (mic_active && loop_active) {
+      n = std::min(mic_.size(), loop_.size());
+    } else if (mic_active) {
+      n = mic_.size();
+    } else if (loop_active) {
+      n = loop_.size();
+    } else {
+      n = std::max(mic_.size(), loop_.size());
+    }
+    n = std::min(n, kFrameSamples);
+
+    std::vector<uint8_t> out;
+    if (n == 0) return out;
+    out.reserve(n * 4);
+    for (size_t i = 0; i < n; ++i) {
+      PushSample(out, i < mic_.size() ? mic_[i] : 0);
+      PushSample(out, i < loop_.size() ? loop_[i] : 0);
+    }
+    mic_.erase(mic_.begin(), mic_.begin() + static_cast<std::ptrdiff_t>(std::min(n, mic_.size())));
+    loop_.erase(loop_.begin(), loop_.begin() + static_cast<std::ptrdiff_t>(std::min(n, loop_.size())));
+    return out;
+  }
+
+ private:
+  using Clock = std::chrono::steady_clock;
+  static constexpr size_t kFrameSamples = 1600;       // 100 ms at 16 kHz, per channel
+  static constexpr size_t kMaxBufferedSamples = 4800; // 300 ms
+  static constexpr std::chrono::milliseconds kInactiveAfter{500};
+
+  static void Append(std::vector<int16_t>& queue, const std::vector<uint8_t>& pcm) {
+    for (size_t i = 0; i + 1 < pcm.size(); i += 2) {
+      queue.push_back(static_cast<int16_t>(static_cast<uint16_t>(pcm[i]) | (static_cast<uint16_t>(pcm[i + 1]) << 8)));
+    }
+    if (queue.size() > kMaxBufferedSamples) {
+      queue.erase(queue.begin(), queue.begin() + static_cast<std::ptrdiff_t>(queue.size() - kMaxBufferedSamples));
+    }
+  }
+
+  static void PushSample(std::vector<uint8_t>& out, int16_t sample) {
+    out.push_back(static_cast<uint8_t>(sample & 0xFF));
+    out.push_back(static_cast<uint8_t>((sample >> 8) & 0xFF));
+  }
+
+  std::vector<int16_t> mic_;
+  std::vector<int16_t> loop_;
+  Clock::time_point last_mic_{};
+  Clock::time_point last_loop_{};
+};
 
 // Converts multi-channel WASAPI buffer to mono float
 std::vector<float> BufferToMonoFloats(const BYTE* data, UINT32 num_frames, const WAVEFORMATEX* pwfx) {
@@ -395,6 +447,7 @@ void AudioCaptureChannel::CaptureWorkerThread() {
   }
 
   // 3. Audio Capture Loop
+  StereoInterleaver interleaver;
   while (is_capturing_.load()) {
     std::vector<float> mic_floats;
     std::vector<float> loop_floats;
@@ -433,17 +486,14 @@ void AudioCaptureChannel::CaptureWorkerThread() {
       }
     }
 
-    // Mix & Resample: capture mic and system audio independently, then sum so
-    // both the local speaker and remote participants are present in the stream.
-    std::vector<uint8_t> mic_pcm;
-    std::vector<uint8_t> loop_pcm;
+    // Resample each source to 16 kHz mono and keep them on separate channels.
     if (!mic_floats.empty() && mic_wfx) {
-      mic_pcm = ResampleTo16kMonoPcm(mic_floats.data(), static_cast<int>(mic_floats.size()), mic_wfx->nSamplesPerSec);
+      interleaver.PushMic(ResampleTo16kMonoPcm(mic_floats.data(), static_cast<int>(mic_floats.size()), mic_wfx->nSamplesPerSec));
     }
     if (!loop_floats.empty() && loopback_wfx) {
-      loop_pcm = ResampleTo16kMonoPcm(loop_floats.data(), static_cast<int>(loop_floats.size()), loopback_wfx->nSamplesPerSec);
+      interleaver.PushLoopback(ResampleTo16kMonoPcm(loop_floats.data(), static_cast<int>(loop_floats.size()), loopback_wfx->nSamplesPerSec));
     }
-    std::vector<uint8_t> pcm_chunk = MixPcm16(mic_pcm, loop_pcm);
+    std::vector<uint8_t> pcm_chunk = interleaver.Take();
 
     if (!pcm_chunk.empty()) {
       std::lock_guard<std::mutex> lock(sink_mutex_);
