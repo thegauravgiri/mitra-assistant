@@ -1,197 +1,77 @@
-# Implementation Plan: Document Upload for Contextual Insights
+# Plan: Cross-meeting conversation graph + a much better coaching experience
 
-**Author:** Claude Opus (Planning Agent)
-**Status:** Ready for implementation
-**Target feature area:** AI Copilot Chat Section (`lib/features/ai_engine/`) + new `lib/features/documents/` module
+## Context
 
----
+Two requests:
+1. The graph must also be built from **old conversations**, viewable in the app, and used for **live recall** during meetings.
+2. Coaching should be "completely good": for **you** (the user), covering **delivery, listening & inclusion, meeting outcomes, and growth over time**, delivered **after the meeting only** (no live nudges).
 
-## 1. Objective
+Decisions from the user: coaching is for the user (they mark "This is me"); all four dimensions; post-meeting only; graph = viewer + live recall.
 
-Let the user upload documents (before or during a meeting) that the AI Copilot uses as
-additional context when generating insights. The AI must pull extra detail from a document
-**only when the ongoing conversation is actually talking about it** — never reprocessing every
-document on every analysis cycle.
+Current state (verified in code):
+- Coaching today = talk time/share, turns, words, interruption counts (`coaching/data/participation_analyzer.dart`) + one generic Gemini review per speaker (`reviewSystemPrompt`). No pace, fillers, monologues, questions, outcomes, goals, or personalisation. Progress compares talk share/turns/interruptions only.
+- Sessions (`MeetingSession`) already hold entries (speaker, word timings for new meetings), insights, `speakerNames`, `coachingReport`; history lives in `shared_preferences` (max 50 sessions). Old sessions have no timings and speaker "Meeting Participant".
+- The document graph types (`DocGraph`, `GraphNode`, `GraphEdge`), layout (`GraphLayout`) and viewer (`graph_view.dart`) exist and are reusable. `GraphExtractorService.merge` holds name-canonicalisation logic worth sharing.
+- The literature review already defines the cross-meeting model: entities Speaker, MeetingSession, Review, ActionItem. The meeting graph follows that.
+- Deepgram `filler_words=true` is supported on Nova-2 (checked in Deepgram docs); it only adds uh/um/mhmm. Other fillers ("like", "you know") are normal words and are detected by regex.
 
-## 2. Locked Decisions
+## Design
 
-| Decision | Choice |
-| :--- | :--- |
-| Supported formats | **TXT / MD + PDF + DOCX** |
-| Persistence | **Session-only** (in-memory; no disk copy) |
-| Relevance gate | **Local keyword match** — zero tokens until a doc is discussed |
-| Injection payload | **One-time summary (single Gemini call at upload) + best-matching chunks when relevant** |
+### A. One post-meeting "digest" feeds both coaching outcomes and the graph
+A single Gemini pass per meeting (`MeetingDigest`, stored on the session) returns: `summary`, `topics[]` (<=8, optional `raisedBy`), `decisions[]`, `actionItems[{owner, task}]`, `openQuestions[{asker, question}]`. This avoids a separate graph-extraction pass, and the graph becomes a pure function of the stored sessions (no second store, no migration, always consistent).
+- Runs automatically when a meeting is saved (replaces the current generic review call).
+- **Backfill for old conversations:** a "Build from history" action runs the same digest over every session without one (sequential, progress "3 of 12", resumable, skips failures). Old transcripts use their stored text; unnamed speakers stay as "Speaker N"/"Meeting Participant" and are only linked to the meeting.
 
-## 3. Core Mechanism (token budget)
+### B. Coaching for "me"
+- **Identity:** new setting `myName` + `MeetingSession.meSpeakerKey`. The report opens with "Which speaker are you?" chips; picking one names that speaker (reusing `speakerNames`, so cross-meeting progress works by name) and triggers the coaching call. Choice remembered by name, not label (labels like "Speaker 1" are not stable across meetings).
+- **Metrics** (extend `SpeakerMetrics`, all nullable/back-compatible, computed in `ParticipationAnalyzer` from existing turns/timings):
+  - Delivery: pace (words/min of talk time), fillers per minute (+ breakdown; needs `filler_words=true` in the Deepgram URL for uh/um; regexes for "like/you know/basically/I mean/sort of/kind of"), longest monologue, average turn length.
+  - Listening & inclusion: talk share vs fair share (1/N), interruptions made/received (existing), questions asked (sentences ending "?"), average response gap before the speaker's turns, share of other speakers who got >= X% airtime.
+  - Old sessions without timings show "n/a" for time-based metrics rather than fake numbers.
+- **Indicators** (`coaching/data/indicator_evaluator.dart`): each metric gets a status (good / ok / watch) from documented thresholds in `AppConstants` (e.g. pace 120-170 wpm, fillers < 3/min, monologue < 60 s, talk share within fair share +/- 15 pts, interruptions made <= 1). Labelled as heuristics; the UI shows the number, the range, and the delta vs the user's average over their last 5 meetings.
+- **Goals / growth:** user picks up to 3 goals from a catalogue (reduce interruptions, keep monologues under N s, ask more questions, fewer fillers, talk share target, steady pace). Stored in settings (JSON). Each meeting evaluates every goal (met / not + trend). Trends come from `ProgressService` (by name).
+- **Coaching narrative** (second Gemini call, only after "This is me"): input = my metrics + indicators + trend vs history + goals + labelled transcript. Output JSON: `strengths[2]`, `improvements[<=3]` each `{title, evidence, tip}`, `goalNotes[]`. Prompt rules: supportive tone; evidence must be a short quote (<=15 words) from the transcript; one concrete tip per improvement; hedge heuristic metrics (interruptions); no personal judgments. **Evidence validation in code:** a quote that is not found in the transcript (normalised substring) is dropped, so hallucinated quotes never display (unit-tested).
+- **Outcomes:** the digest's decisions, action items (with owner), and unanswered questions are shown in the report; the user's own items are highlighted ("You own 2 actions").
+- Old per-speaker `reviews` map stays readable for existing sessions; no new per-speaker reviews for other people.
 
-A document is parsed and keyword-indexed **once** at upload. On each analysis cycle a
-**zero-cost local keyword match** compares the recent transcript window against each doc's
-keyword index. A document's content enters the Gemini prompt **only** when it clears a
-relevance threshold, and then only as its short summary + top-matching chunks (capped by a
-char budget) — never the full file.
+### C. Meeting graph
+- `MeetingGraphBuilder.build(sessions)` (pure): nodes = Meeting, Person (by normalised `speakerNames`), Topic, Decision, Action, Question; edges = attended, discussed, raised, decided_in, owns, asked, unanswered_in. Topic/person names canonicalised by shared helper (extract `GraphExtractorService`'s canonicalisation into `core/utils/name_canonicalizer.dart` and reuse). Topics merging across meetings is what makes it a graph.
+- Reuses `DocGraph/GraphNode/GraphEdge`; `GraphNode` gains optional `sourceIds` (meeting ids) alongside `chunkIndexes`. Type colours extended.
+- `meetingGraphProvider` (derived from `historyNotifierProvider`, memoised).
+- **Viewer:** Graph page gets a "Documents | Meetings" switch; type filter chips; shows the top ~150 nodes by degree with a "show all" toggle; node details panel lists meetings (title/date), relations, and quotes for decisions/actions/questions. "Build from history" button + progress lives here and on the Coaching page.
+- **Live recall:** `MeetingRecallService.recall(transcriptWindow, graph)` matches transcript words to Topic/Person/Action nodes (same seed logic as document retrieval, `DocGraph.seedNodes`), collects connected facts from past meetings (date, decision, action + owner, question that stayed unanswered), caps at ~600 chars, and passes it to `PromptTemplates.buildAnalysisPrompt` as a new "Earlier meetings" block with an instruction to surface it as insights ("Discussed 12 Oct; Sneha owns the follow-up"). The current meeting is excluded (not saved yet). No hit -> block omitted, zero cost.
+- Privacy note in docs/UI: recall sends short snippets from earlier meetings to Gemini, the same as the live transcript already does.
 
-```
-Upload once:  file -> extract text -> chunk + keyword-index -> 1 Gemini summarize call -> READY
-Every cycle:  transcript window --local keyword match--> relevant docs?
-                 no  -> send transcript only (no extra tokens)
-                 yes -> append [summary + top chunks, <= ~1500 chars] to prompt
-```
+### D. UI (Workspace; Zen unchanged apart from a compact report dialog)
+- **Coaching page rebuilt:** header (meeting, date, "This is me" chips) -> Scorecard (indicator tiles with status, value, range, delta) -> Goals card (edit up to 3, met/not) -> Strengths / Improvements (quote + tip) -> Outcomes (decisions, my actions, open questions) -> All speakers table -> Progress (sparklines per metric over time via a small `CustomPainter`). Session list stays on the left.
+- Settings: "My name" field.
+- Markdown/JSON export updated with the new sections (digest, indicators, goals, narrative).
 
-## 4. New Dependencies (`pubspec.yaml`)
+## Files (representative)
 
-- `file_picker` — file selection dialog
-- `syncfusion_flutter_pdf` — PDF text extraction (pure Dart, macOS-compatible)
-- `docx_to_text` — DOCX -> plain text
-- `desktop_drop` — drag-and-drop files onto the chatbox area
+New: `coaching/domain/models/{meeting_digest,coaching_feedback,goal}.dart`, `coaching/data/{indicator_evaluator,goal_evaluator,digest_service}.dart`, `coaching/presentation/{scorecard,goals_card,outcomes_card,sparkline}.dart`, `meeting_graph/data/{meeting_graph_builder,meeting_recall_service}.dart`, `meeting_graph/providers/meeting_graph_providers.dart`, `core/utils/name_canonicalizer.dart`.
+Changed: `participation_analyzer.dart`, `speaker_metrics.dart`, `meeting_session.dart` (digest, feedback, meSpeakerKey), `coaching_providers.dart` (digest + coaching + backfill), `gemini_service.dart` + `prompt_templates.dart` (digest and coaching prompts; recall block), `ai_providers.dart` (recall context), `deepgram_service.dart` (`filler_words=true`), `graph_view.dart`, `doc_graph.dart`, `workspace_shell.dart` (Coaching page), `settings_*` (myName, goals), `report_export_service.dart`, `app_constants.dart`.
 
-> **RISK:** `syncfusion_flutter_pdf` is free under Syncfusion's Community License but requires a
-> license for commercial use above their revenue threshold. Fallback: `read_pdf_text`.
-> Confirm licensing acceptability before wiring in.
+## Sequence
+1. Metrics (pace, fillers, monologue, questions, response gap) + indicator/goal evaluators + tests.
+2. Digest model + prompt + parser + backfill + tests; session fields; save-time call.
+3. Coaching narrative + evidence validation + "This is me" flow + myName/goals settings.
+4. Coaching page rebuild (scorecard, goals, outcomes, sparklines).
+5. Meeting graph builder + provider + viewer switch + filters + backfill UI.
+6. Live recall into the analysis prompt + tests.
+7. Export updates, `.docs` plan/task/walkthrough (archive current), CLAUDE.md note.
 
-> **No macOS entitlement changes required** — the app sandbox is currently **disabled**
-> (`com.apple.security.app-sandbox = false` in both `DebugProfile.entitlements` and
-> `Release.entitlements`), so `file_picker` has file access. If sandboxing is ever enabled,
-> add `com.apple.security.files.user-selected.read-only`.
+## Risks / limits (stated honestly)
+- "Me" cannot be detected automatically on a mixed mono stream; the user marks it per meeting (future option: separate mic/system channels).
+- Pace, fillers and response gaps depend on Deepgram word timings; interruptions stay an estimate. Thresholds are heuristics, not clinical norms.
+- Old sessions lack timings, so only text-based items (digest, questions, word counts) are available for them.
+- Backfill costs one Gemini call per old meeting; long transcripts are trimmed (head + tail) like the existing review.
+- Graph size: <=50 sessions x ~15 nodes; top-150 view keeps it readable; layout already runs off the UI isolate.
+- Marking action items "done" is not in scope; recall labels old actions as "from <date>" without claiming they are open.
 
-## 5. New Module: `lib/features/documents/`
-
-Follows the repo's feature-first layering (`data/`, `domain/models/`, `providers/`, `presentation/`).
-
-### `domain/models/uploaded_document.dart`
-```dart
-enum DocStatus { parsing, summarizing, ready, error }
-
-class UploadedDocument {
-  final String id;               // Uuid v4
-  final String fileName;
-  final String fileType;         // 'txt' | 'md' | 'pdf' | 'docx'
-  final String fullText;
-  final List<DocumentChunk> chunks;
-  final Set<String> keywords;    // document-level keyword index
-  final String? summary;         // one-time Gemini summary (nullable if key missing)
-  final int charCount;
-  final DocStatus status;
-  final bool isPinned;           // force-include summary regardless of match
-  final DateTime uploadedAt;
-  final String? error;
-  // + copyWith
-}
-
-class DocumentChunk {
-  final String text;             // ~500 chars, split on sentence/paragraph boundary
-  final Set<String> keywords;    // precomputed for cheap matching
-}
-```
-
-### `data/document_parser_service.dart`
-- Picks files via `file_picker` with `withData: true` (also accepts dropped file paths from `desktop_drop`).
-- Routes by extension:
-  - `txt` / `md` -> decode bytes as UTF-8.
-  - `pdf` -> `syncfusion_flutter_pdf` `PdfTextExtractor`.
-  - `docx` -> `docx_to_text`.
-- Enforces `maxDocumentSizeBytes`.
-- Splits extracted text into `documentChunkSize` (~500) char chunks on sentence/paragraph
-  boundaries; computes per-chunk and document-level keyword sets via the shared tokenizer.
-
-### `data/document_relevance_service.dart`
-Pure, offline, unit-testable. No network.
-- Input: recent transcript window (+ optional question text) and the list of READY docs.
-- Scores each doc by keyword overlap (shared tokenizer) against the window.
-- Returns docs clearing `documentRelevanceThreshold`, plus their top-N matching chunks
-  assembled within `maxDocumentContextChars`.
-- Pinned docs always contribute their summary (small) even without a match.
-- Produces the assembled `documentContext` string + an active-doc signature (for change detection).
-
-### `providers/document_providers.dart`
-```dart
-class DocumentState {
-  final List<UploadedDocument> documents;
-  final bool isProcessing;
-  // + copyWith
-}
-
-class DocumentNotifier extends StateNotifier<DocumentState> {
-  // addDocuments(...)  -> pipeline: parsing -> keyword-index -> summarizing -> ready
-  // removeDocument(id)
-  // togglePin(id)
-}
-final documentNotifierProvider = StateNotifierProvider<DocumentNotifier, DocumentState>(...);
-```
-Upload pipeline per file: create doc `status: parsing` -> extract text -> chunk + keyword-index
-(instant, local) -> `status: summarizing` -> one `GeminiService.summarizeDocument` call ->
-`status: ready`. Missing Gemini key -> skip summary, still reach `ready`. Parse failure ->
-`status: error` with message.
-
-### `presentation/document_chips_bar.dart`
-Horizontal strip of chips shown above the input row: file-type icon, name, status
-(spinner / check / error), pin toggle, remove (x). Optional subtle "active now" marker when a
-doc is being injected in the current cycle.
-
-## 6. Shared Refactor: `lib/core/utils/text_similarity.dart`
-
-Extract the tokenizer / stop-words / Jaccard helpers currently **private** in `AiNotifier`
-(`ai_providers.dart:181-199` — `_tokenize`, `_calculateJaccardSimilarity`, `_normalize`,
-`_stopWords`) into one reusable module. Used by both the existing dedup logic and the new
-relevance scoring. **No behavior change** to dedup — `AiNotifier` delegates to the util.
-
-## 7. Modifications to Existing Files
-
-### `lib/features/ai_engine/data/prompt_templates.dart`
-- Add optional `documentContext` param to `buildAnalysisPrompt` and `buildQuestionPrompt`,
-  rendering a fenced `Reference Documents:` block only when non-empty.
-- Add `buildDocumentSummaryPrompt(String text)` for the one-time upload summary.
-
-### `lib/features/ai_engine/data/gemini_service.dart`
-- Add optional `String documentContext = ''` to `analyzeTranscript` and `askCopilotQuestion`;
-  pass through to the prompt builders.
-- Add `Future<String> summarizeDocument({required String apiKey, required String text})` —
-  one-shot, **plain-text** response (bypass the JSON `responseMimeType`, e.g. a separate model
-  instance or per-call config), 2-3 sentence summary.
-
-### `lib/features/ai_engine/providers/ai_providers.dart`
-- `analyzeCurrentTranscript`: after computing `transcriptSlice`, call the relevance service
-  against the window; pass resulting `documentContext` to `analyzeTranscript`.
-- `askQuestion`: run relevance against **transcript + question text** (so "summarize the doc I
-  uploaded" pulls it in); pass context to `askCopilotQuestion`.
-- Extend change-detection: combine `_lastAnalyzedTranscript` with an active-doc signature so a
-  newly-relevant doc can re-trigger analysis even if transcript text is unchanged.
-- Replace private tokenizer usage with `text_similarity.dart`.
-
-### `lib/features/ai_engine/presentation/insight_view.dart`
-- Add a paperclip **attach** `IconButton` to the bottom input row (`insight_view.dart:467-497`)
-  that invokes the picker.
-- Render `DocumentChipsBar` directly above that row.
-- Wrap the view body in a `DropTarget` (desktop_drop); on drop of supported file types call
-  `addDocuments`; show a highlight overlay while dragging.
-
-### `lib/core/constants/app_constants.dart`
-Add: `supportedDocumentExtensions`, `maxDocumentSizeBytes`, `documentChunkSize`,
-`maxDocumentContextChars` (~1500), `documentRelevanceThreshold`.
-
-## 8. Behavior Details
-
-- **Upload any time:** `DocumentNotifier` is independent of meeting state; parse/summarize runs
-  on upload whether or not a meeting is active.
-- **Pinning:** a pinned doc always injects its (small) summary — for uploading a file mid-call
-  to discuss it before its keywords appear in the transcript.
-- **Graceful degradation:** no Gemini key -> parse + keyword-match still work, summary skipped
-  (chunks inject when relevant); parse failure -> chip shows error, doc excluded from context.
-
-## 9. Tests (`test/`)
-
-- Parser: txt/md extraction + chunk-boundary correctness.
-- Keyword extraction + relevance selection: deterministic/offline — threshold gating,
-  char-budget capping, pinned-doc inclusion.
-- Regression: dedup still passes after the tokenizer refactor.
-
-## 10. Verification
-
-`flutter analyze` -> `flutter test` -> `flutter run -d macos`. Upload a doc before a meeting,
-confirm it is ignored while the conversation is off-topic (no doc tokens sent), then speak about
-its content and confirm insights referencing it appear.
-
-## 11. Open Questions / Risks
-
-1. Syncfusion PDF licensing (see §4) — confirm acceptable or switch to `read_pdf_text`.
-2. DOCX parsing edge cases (tables, images) — text-only extraction is acceptable for v1.
-3. Relevance threshold tuning — start conservative; expose as a constant for iteration.
+## Verification
+1. `flutter analyze` clean, `flutter test` green. New tests: each delivery metric on hand-built entries; indicator/goal status and trend; evidence-quote validation (hallucinated quote dropped); digest/coaching parsers (fenced/malformed JSON); `MeetingGraphBuilder` merges one topic across two meetings and one person across differently-labelled speakers; `MeetingRecallService` returns the earlier decision/action only on a topic hit and nothing otherwise; JSON back-compat for old sessions.
+2. Run macOS: record a short two-person clip, stop, open Coaching, pick "This is me", confirm scorecard, narrative with real quotes, outcomes; mark a goal and check it evaluates.
+3. History with older meetings: "Build from history", confirm progress, then Graph -> Meetings shows shared topics linking meetings; click a topic node.
+4. Start a new meeting, mention a topic from an old meeting, confirm an "earlier meeting" insight appears.
+5. Windows smoke test (Dart-only changes; one `filler_words=true` connection check).

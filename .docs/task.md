@@ -1,56 +1,17 @@
-# Task Checklist: Document Upload for Contextual Insights
+# Task Checklist: Meeting graph + coaching overhaul
 
-Legend: `[ ]` todo · `[/]` in progress · `[x]` done
+Legend: `[ ]` todo · `[/]` in progress · `[x]` done. Plan: [implementation_plan.md](implementation_plan.md). Earlier cycles: [archive/](archive/).
 
-See [implementation_plan.md](implementation_plan.md) for full detail.
+- [x] 1. Delivery/listening metrics, indicators, goals (+ tests)
+- [x] 2. MeetingDigest model/prompt/parser/backfill (+ tests)
+- [x] 3. Coaching narrative + evidence validation + "This is me" + myName/goals settings
+- [x] 4. Coaching page rebuild (scorecard, goals, outcomes, sparklines)
+- [x] 5. Meeting graph builder + provider + viewer switch/filters + backfill UI
+- [x] 6. Live recall in analysis prompt (+ tests)
+- [x] 7. Export updates, docs, CLAUDE.md
 
-## Phase 1 — Dependencies & Constants
-- [x] Add `file_picker`, `syncfusion_flutter_pdf`, `docx_to_text`, `desktop_drop` to `pubspec.yaml`; run `flutter pub get`
-- [x] Confirm Syncfusion Community License acceptable (else switch to `read_pdf_text`)
-- [x] Add document constants to `lib/core/constants/app_constants.dart` (extensions, max size, chunk size, max context chars, relevance threshold)
-
-## Phase 2 — Shared Tokenizer Refactor
-- [x] Create `lib/core/utils/text_similarity.dart` (tokenize, Jaccard, normalize, stop-words)
-- [x] Refactor `AiNotifier` (`ai_providers.dart`) to delegate to the util — no dedup behavior change
-- [x] Regression: existing dedup tests still pass
-
-## Phase 3 — Documents Module (domain + data)
-- [x] `domain/models/uploaded_document.dart` (`UploadedDocument`, `DocumentChunk`, `DocStatus`, `copyWith`)
-- [x] `data/document_parser_service.dart` (pick + extract txt/md/pdf/docx, size guard, chunk, keyword-index)
-- [x] `data/document_relevance_service.dart` (offline relevance scoring, chunk selection, char budget, pinned handling, active-doc signature)
-
-## Phase 4 — Provider
-- [x] `providers/document_providers.dart` (`DocumentState`, `DocumentNotifier`, provider)
-- [x] Upload pipeline: parsing -> keyword-index -> summarizing -> ready; error + missing-key handling
-- [x] `addDocuments`, `removeDocument`, `togglePin`
-
-## Phase 5 — Gemini / Prompt Integration
-- [x] `prompt_templates.dart`: `documentContext` block in analysis + question builders; add `buildDocumentSummaryPrompt`
-- [x] `gemini_service.dart`: `documentContext` param on both methods; add `summarizeDocument` (plain-text response)
-- [x] `ai_providers.dart`: inject relevant `documentContext` in `analyzeCurrentTranscript` and `askQuestion`; extend change-detection with active-doc signature
-
-## Phase 6 — UI
-- [x] Attach (paperclip) `IconButton` in bottom input row of `insight_view.dart`
-- [x] `presentation/document_chips_bar.dart` (chips: icon, name, status, pin, remove) above input
-- [x] Wrap view body in `desktop_drop` `DropTarget` + drag highlight overlay
-
-## Phase 7 — Tests & Verification
-- [x] Unit: parser (txt/md) + chunk boundaries
-- [x] Unit: keyword extraction + relevance selection (threshold, char budget, pinned)
-- [x] `flutter analyze` clean
-- [x] `flutter test` green
-- [x] `flutter run -d macos`: off-topic doc sends no tokens; on-topic doc surfaces referencing insights
-- [x] Author `.docs/walkthrough.md` (Implementation Agent)
-
-## Phase 8 — Native Windows Support
-- [x] Install & initialize Flutter SDK 3.47.6 on Windows machine
-- [x] Verify Visual Studio Build Tools 2019 C++ toolchain
-- [x] Fix UTF-8 multibyte character decoding bug in `DocumentParserService`
-- [x] Add unit test for UTF-8 decoding with emojis and international text
-- [x] Fix tab state preservation in `ExpandedModeView`
-- [x] Implement Windows native screenshare stealth protection via `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)`
-- [x] Implement Windows native WASAPI audio capture & system audio loopback (`AUDCLNT_STREAMFLAGS_LOOPBACK`)
-- [x] Register native platform channels in `windows/runner/flutter_window.cpp` and update `CMakeLists.txt`
-- [x] Verify Windows build (`flutter build windows --debug` & `--release`)
-- [x] Launch and run Mitra Assistant on Windows desktop (`flutter run -d windows`)
-
+## Needs a real run (not verifiable headless)
+- [ ] Record a two-person clip -> pick "This is me" -> scorecard/coaching/outcomes look right; quotes are real
+- [ ] "Build notes for older meetings" on existing history, then Graph -> Meetings
+- [ ] Mention an old topic in a new meeting -> "earlier meeting" insight appears
+- [ ] Deepgram accepts `filler_words=true` (uh/um show up in transcript); Windows smoke test

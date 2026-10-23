@@ -1,134 +1,68 @@
-# Walkthrough: Document Upload for Contextual Insights
+# Walkthrough: Meeting graph + coaching overhaul
 
-**Author:** Gemini / Antigravity (Implementation Agent)  
-**Status:** Completed & Verified  
+## What changed
+- **Meeting digest** (`coaching/data/digest_service.dart`): one Gemini pass per meeting yields summary, topics, decisions, action items (with owner) and unanswered questions; stored on the session. Runs automatically on save. "Build notes for N older meetings" (`BackfillBar`, Coaching page and Graph page) runs it over old history, sequentially, skipping failures.
+- **Meeting graph** (`meeting_graph/`): `MeetingGraphBuilder` derives meetings, people, topics, decisions, actions and questions from saved sessions (no separate storage). Same topic/person across meetings merges into one node (`NameCanonicalizer`, shared with the document graph). Items link to the topics they mention. Graph page: Meetings | Documents switch, type filters, top-150 by degree (+ "show all"), node details with meetings and links.
+- **Live recall**: `MeetingRecallService` matches transcript words to topic nodes and adds a short "Earlier meetings" block (date, decision, action + owner, left-unanswered) to the live analysis prompt. Nothing is added when no topic matches. The current meeting is excluded.
+- **Coaching for "me"**: speaker picker per meeting ("This is me", name remembered in Settings -> Profile). New metrics: pace, fillers (Deepgram `filler_words=true` + phrase matching), longest stretch, average turn, questions, response gap. `IndicatorEvaluator` gives good/ok/watch against documented thresholds with delta vs your last 5 meetings. Goals (up to 3, Settings -> stored) are evaluated every meeting. `CoachingFeedbackService` produces strengths/improvements with a concrete tip each; **quotes are verified against your own lines and dropped if not found**.
+- **Report UI**: me picker, scorecard, goals, coaching, outcomes, everyone's numbers, exports (.md/.json now include coaching and notes). Progress panel shows a sparkline per metric over time.
+- Removed the old generic per-speaker review generation; reviews already stored on old sessions still display.
 
----
+## Verified
+- `flutter analyze` clean; `flutter test` all green (new: delivery metrics, indicators/goals, digest and coaching parsers incl. hallucinated-quote drop, meeting graph builder, recall, graph filter, report panel widget tests).
+- macOS debug build + launch.
 
-## 🎯 Overview
+## Not verified (needs an interactive run)
+- Real Gemini output quality for digest/coaching; Deepgram acceptance of `filler_words=true`; graph viewer on real data; Windows.
 
-Implemented end-to-end document attachment and contextual insight generation for Mitra Assistant. Users can upload reference documents (PDF, DOCX, TXT, MD) via drag-and-drop or the native file picker prior to or during a live meeting. 
+## Limits to remember
+- The app cannot tell which voice is yours on a mixed stream; you pick per meeting.
+- Old meetings have no word timings, so pace/fillers-per-minute/monologue show "n/a" for them; notes, questions and the graph still work.
+- Thresholds are rules of thumb. Interruptions are estimates.
+- Recall sends short snippets of earlier meetings to Gemini (as the live transcript already is).
 
-To maximize efficiency and minimize API token cost:
-- Uploaded files are parsed, chunked (~500 chars), and keyword-indexed locally in memory.
-- A one-shot Gemini summary is generated upon upload.
-- An offline, zero-token Jaccard keyword matching engine evaluates recent transcript windows against document keyword indices on every analysis cycle.
-- Document summaries and relevant text chunks are injected into Gemini prompts **only when the document topic is actively discussed** (or explicitly pinned).
+## UI refinement round (graph 3D, colours, coaching layout)
+- **3D graph** (`documents/presentation/graph_3d_view.dart`): force-directed layout in 3D (`graph_layout_3d.dart`, isolate), orbit camera with perspective (`graph_camera.dart`), drag to rotate, scroll/pinch to zoom, double-click to reset, optional auto-rotate, click a node to focus it. Depth cues: nearer nodes are larger and brighter. Hover/selection dims everything except the node and its neighbours.
+- **Edges:** three tiers (structural: attended/from/decided in/unanswered in = faint; semantic = medium; owns/asked/raised = strong). Edges touching the focused node get a source-to-target colour gradient, an arrowhead and a relation label. Labels go through `LabelPlacer` (greedy, collision-free), so names no longer overlap or clip.
+- **Colour:** node colours are the first three validated categorical slots (blue, orange, aqua; passes all-pairs colour-blind/normal-vision checks on the graph surface). Beyond three groups, **shape** carries the type (hexagon meeting, circle topic/person, diamond decision, square action, triangle open question) plus a legend. Status colours use the fixed good/warning/serious palette with icon + word. Muted text raised from 3.2:1 to 6:1 contrast; chips/segmented buttons no longer default to green (`AppTheme`).
+- **Coaching page:** rebuilt as tabs (meeting list + "My progress"), adaptive one/two-column report, even tile grid with status accent bar, shared `SectionCard`, export moved to a menu. Fixed a desktop bug where vertical scroll views shared one primary controller (report opened scrolled halfway).
+- **Screenshot harness:** `tool/preview/` runs the real app with sample data and capture protection off (never ships). Build `flutter build macos --debug -t tool/preview/preview_main.dart`, then run the binary with `PAGE=coaching|graph|graph-docs|documents|history|settings|zen` (and `SELECT=<node id>`).
 
----
+## Documents persist + combined graph
+- **Saved documents:** `DocumentRepository` writes finished documents (text, chunks, summary, pin state, entity graph) to `Documents/MitraAssistant/documents.json` (atomic write, serialised, corrupt file = empty list). `DocumentNotifier` loads on start and saves 600 ms after any change. A graph build interrupted by quitting is restored as "not built" (retry button). Tests/preview use `persist: false`.
+- **Combined graph** (`meeting_graph/data/combined_graph_builder.dart`): meeting graph + a pentagon document node per ready document, linked ("mentions") to its 25 best-connected entities, with the document's own relations kept. A document entity links ("same as", dashed white) to a meeting topic/person **only when the names match** (`NameCanonicalizer.find`, no registering). Linked, not merged; document retrieval is unchanged and still uses each document's own graph.
+- **Graph page:** All (default) | Meetings | Documents. Filter chips add Documents and Document entities. Document-side nodes show the file name and the source excerpts.
+- Limits: matching is by name only, so "Pricing" and "Pricing strategy" will not link; entities are capped at 25 per document; the 150-node view cap still applies.
 
-## 🛠️ Key Changes & Architecture
+## History refined; outcomes moved out of Coaching
+- **History** is now list + detail. Left: searchable list (title, summary, transcript text) with badges for notes-ready and coached. Right: the opened meeting with **Outcomes** and **Transcript** tabs, Coaching (jumps to that meeting's coaching), Export CSV and Delete. Transcript groups consecutive lines per speaker with colour, names and times, has find-in-transcript, and copy.
+- **Outcomes left Coaching.** Coaching keeps a "Your follow-ups" card (action items you own, your unanswered questions) with a "Full notes" link to History; History links back via "Coaching".
+- **Safer delete:** deleting one meeting or all meetings opens a dialog with a checkbox; the Delete button is disabled until it is ticked (`core/widgets/confirm_delete_dialog.dart`). Cancel keeps everything.
+- The old Zen-sized coaching/progress dialogs were removed (Zen has no History).
 
-### 1. Shared Utilities & Core
-- **`lib/core/utils/text_similarity.dart`**: Extracted stop-words, normalization, tokenization, and Jaccard similarity logic into a shared core utility class used by both `AiNotifier` (for insight deduplication) and `DocumentRelevanceService` (for keyword matching).
-- **`lib/core/constants/app_constants.dart`**: Added document configuration constants (`supportedDocumentExtensions`, `maxDocumentSizeBytes`, `documentChunkSize`, `maxDocumentContextChars`, `documentRelevanceThreshold`).
+## Speaker separation fixes (diarisation)
+Two causes found by reading the code; neither could be proven with live audio here.
+1. **macOS mixed nothing.** The mic tap and the ScreenCaptureKit stream each pushed their own chunks into the same Deepgram stream, so the two sources were interleaved (audio at roughly double speed) instead of summed. Windows already sums (`MixPcm16`). macOS now uses `PcmMixer` (in `AudioCaptureService.swift`): per-source queues, drained every 100 ms and added sample by sample with clipping, 300 ms backlog cap. Standalone checks: `tool/native_tests/run_pcm_mixer_test.sh` (10 checks).
+2. **System audio was forwarded as raw bytes.** ScreenCaptureKit audio is not guaranteed to be Int16 (typically 32-bit float, possibly planar). `AudioStreamOutput` now reads the real format and converts via `PcmConverter` (shared with the mic path) to 16 kHz mono Int16.
+3. **One result = one speaker.** `DeepgramMessageParser` labelled a whole Deepgram result with its majority speaker, so a result containing both voices became one line. `parseAll` now emits one entry per run of consecutive same-speaker words (with their own times). A lone word shorter than 0.35 s between two runs of the same speaker is treated as flicker; a real one-word reply is kept. Interim (live) text stays a single entry.
+Not verified: real two-person audio; Deepgram diarisation needs several seconds of speech before it separates voices, and quality drops when both voices come through one speaker/mic (use headphones to keep the remote voice out of the mic).
 
-### 2. Documents Feature Module (`lib/features/documents/`)
-- **`domain/models/uploaded_document.dart`**: Implemented `UploadedDocument`, `DocumentChunk`, `DocStatus` (`parsing`, `summarizing`, `ready`, `error`), and immutability helpers.
-- **`data/document_parser_service.dart`**: Supports native file picker and file paths; parses TXT/MD, PDFs (`syncfusion_flutter_pdf`), and DOCX (`docx_to_text`); enforces 10 MB limit; chunks text on sentence/paragraph boundaries; indexes keywords.
-- **`data/document_relevance_service.dart`**: Offline relevance matcher. Scores ready documents against transcript windows, respects pinned documents, ranks top-matching chunks, and enforces the `maxDocumentContextChars` limit.
-- **`providers/document_providers.dart`**: Riverpod state management (`DocumentNotifier` & `DocumentState`) handling async file picking, drag-and-drop ingestion, state transitions, summarization pipeline, pin toggling, and document removal.
-- **`presentation/document_chips_bar.dart`**: Sleek, glassmorphic horizontal chip bar above chatbox displaying file-type icons, names, loading spinners, pin toggles, and close buttons.
+## Speaker separation, second round: separate channels
+Mixing both voices into one stream and asking diarisation to tell them apart was unreliable (and in a real test it labelled the user and the caller both "Speaker 1"). The user's mic and the call are different *sources*, so they now stay apart:
+- **Native:** macOS (`PcmMixer`) and Windows (`StereoInterleaver`) send ONE stereo stream: left = microphone, right = system audio. Channels stay sample-aligned: while both sources deliver, only the common length is emitted (never padded, so neither is time-stretched); a source quiet for 500 ms becomes zeros; backlog capped at 300 ms. Checks: `tool/native_tests/run_pcm_mixer_test.sh` (macOS, 12) and `tool/native_tests/stereo_interleaver_test.cpp` (Windows class compiled with clang, 7). The whole Windows app build is NOT verified.
+- **Deepgram:** `channels=2&multichannel=true` (+ `diarize=true`). Results carry `channel_index`. Channel 0 is always **"You"**; channel 1 is the call, where diarisation (numbering restarts per channel) gives Speaker 2, 3, ...
+- **Setting** (Settings -> Speaker separation, on by default): off folds stereo to mono (`PcmDownmix`) = old behaviour and single-channel billing. Deepgram bills each channel, so on costs about 2x.
+- **Echo guard** (`TranscriptMerge`): if the call plays through speakers the mic hears it. A "You" line that repeats a call line (>= 3 content words, 75% overlap, within 4 s) is dropped, or replaced if the call line arrives second. Lines are inserted in start-time order because the two channels arrive interleaved.
+- **Automatic "me":** meetings recorded with a "You" channel save `meSpeakerKey = 'You'` named after the profile name, so there is no "which speaker are you?" step for new meetings. Older meetings keep the manual picker.
+- Analysis prompt now says "You" is the user.
+Not verified: real two-person audio on either OS; whether Deepgram diarisation numbers speakers on the call channel as expected; the interleaved-stereo layout is the standard for raw linear16 but was not confirmed against a live stream.
 
-### 3. AI Engine Integration
-- **`lib/features/ai_engine/data/prompt_templates.dart`**: Added optional `documentContext` fenced blocks to `buildAnalysisPrompt` and `buildQuestionPrompt`. Added `buildDocumentSummaryPrompt`.
-- **`lib/features/ai_engine/data/gemini_service.dart`**: Added `documentContext` parameters to `analyzeTranscript` and `askCopilotQuestion`. Added `summarizeDocument` for plain-text one-shot summarization.
-- **`lib/features/ai_engine/providers/ai_providers.dart`**: Updated `analyzeCurrentTranscript` and `askQuestion` to compute and pass relevant document context. Extended change detection with `activeSignature` to re-trigger analysis when relevant document context changes.
-- **`lib/features/ai_engine/presentation/insight_view.dart`**: Integrated paperclip attachment button in input bar, embedded `DocumentChipsBar`, and wrapped view in `desktop_drop` `DropTarget` with visual drag overlay.
-
----
-
-## 🧪 Verification Results
-
-### Automated Unit Tests
-Executed `flutter test` across all unit test suites (14 tests passed in total):
-- `test/core/utils/text_similarity_test.dart` — Verified tokenization, normalization, and Jaccard similarity.
-- `test/features/documents/document_parser_service_test.dart` — Verified file parsing, invalid extension rejection, and boundary chunking.
-- `test/features/documents/document_relevance_service_test.dart` — Verified off-topic gating (0 extra tokens), topic matching, pinned doc inclusion, and character budget capping.
-- `test/unit_test.dart` & `test/widget_test.dart` — Passed clean.
-
-```bash
-00:04 +14: All tests passed!
-```
-
-### Static Analysis
-Executed `flutter analyze`:
-```bash
-Analyzing mitra_assistant...
-No issues found! (ran in 2.0s)
-```
-
----
-
-## 📄 Documentation Updates
-- Updated `.docs/task.md` with complete checklist status.
-- Updated `README.md` with the new Contextual Document Upload feature description, stack additions, and feature architecture map.
-
----
-
-## 🛠️ Fix: Native File Picker Option on macOS
-
-### Bug
-Clicking the paperclip upload button did not display the native macOS `NSOpenPanel` file picker dialog.
-
-### Root Cause
-`file_picker`'s Swift implementation checks for `com.apple.security.files.user-selected.read-only` or `read-write` entitlements by default via `SecTaskCopyValueForEntitlement`. Because the app runs with app-sandbox disabled (`com.apple.security.app-sandbox = false`), these entitlement keys were missing from binary metadata, causing `checkEntitlement` in `FilePickerPlugin.swift` to fail with `ENTITLEMENT_NOT_FOUND` before opening `NSOpenPanel`.
-
-### Fix
-1. Added `await FilePicker.skipEntitlementsChecks()` prior to calling `FilePicker.pickFiles()` in `DocumentParserService.pickAndParseDocuments()`.
-2. Added `<key>com.apple.security.files.user-selected.read-only</key><true/>` to `DebugProfile.entitlements` and `Release.entitlements`.
-
----
-
-## 🛠️ Fix: macOS Gatekeeper Malware Verification Alert
-
-### Bug
-When attempting to run or open downloaded builds of **Mitra Assistant**, macOS displays a Gatekeeper security alert:
-> *"Apple could not verify “mitra_assistant” is free of malware that may harm your Mac or compromise your privacy."*
-
-### Root Cause
-macOS Gatekeeper automatically tags binaries downloaded from web browsers or GitHub Releases with the `com.apple.quarantine` extended file attribute. Un-notarized app binaries (built without an active Apple Developer ID Code Signing & Notarization pipeline) trigger Gatekeeper blocks upon execution.
-
-### Fix
-1. Updated [README.md](../README.md) under **⚙️ Initial Configuration & Permissions** with a dedicated **🛡️ macOS Gatekeeper & Unverified Developer Warning** section providing:
-   - **Terminal Command Method**: `xattr -d com.apple.quarantine /path/to/mitra_assistant.app`
-   - **System Settings Override**: **System Settings > Privacy & Security > Open Anyway**
-   - **Local Developer Build**: `flutter run -d macos`
-2. Cleaned up legacy merge conflict markers in `README.md` and `CLAUDE.md`.
-
-### Verification
-- **Static Analysis**: `flutter analyze` completed with 0 errors/warnings.
-- **Automated Tests**: `flutter test` passed 14/14 unit & widget tests.
-- **Documentation Verification**: Verified `README.md` and `CLAUDE.md` syntax and formatting.
-
----
-
-## 🪟 Feature: Native Windows Desktop Support
-
-### Implementation Overview
-Previously, Mitra Assistant's native audio and window controls only existed in Swift for macOS. We developed the complete C++ Win32 platform bridge to bring full native parity to Windows:
-
-1. **Screenshare Stealth Protection (`window_control_channel.cpp`)**:
-   - Implemented `SetWindowDisplayAffinity(GetHandle(), WDA_EXCLUDEFROMCAPTURE)` on Windows 10/11.
-   - Hides the floating overlay window from screen share applications (Zoom, Microsoft Teams, Google Meet, OBS) and screenshot tools.
-   - Implemented `ShowWindow(GetHandle(), SW_HIDE)` and `SW_SHOW` for panic hide and unhide controls.
-
-2. **WASAPI Audio Capture & Loopback Service (`audio_capture_channel.cpp`)**:
-   - Integrated Windows Audio Session API (WASAPI) with COM multithreaded runtime.
-   - Captured microphone input via `IAudioCaptureClient` and default/selected audio endpoint.
-   - Captured system/meeting audio loopback via `AUDCLNT_STREAMFLAGS_LOOPBACK` from the default render endpoint (`eRender`).
-   - Implemented real-time mono mixing and downsampling to 16kHz 16-bit linear PCM binary chunks emitted across `com.mitra.assistant/audio_stream` EventChannel for Deepgram streaming STT.
-   - Enumerated audio capture devices with friendly names via `IMMDeviceEnumerator` and `PKEY_Device_FriendlyName`.
-
-3. **Core Dart Improvements & Bug Fixes**:
-   - **UTF-8 Encoding**: Replaced `String.fromCharCodes(bytes)` with `utf8.decode(bytes, allowMalformed: true)` in `DocumentParserService`.
-   - **Tab State Preservation**: Replaced keyed subtree in `ExpandedModeView` with `IndexedStack` to preserve state, search filters, and scroll position across tab switches.
-   - **Cross-Platform Hotkeys**: Configured `WindowControlService` to use `HotKeyModifier.control` on Windows (`Ctrl+Shift+H` / `Ctrl+Shift+M`) to prevent Windows Start key collisions.
-
-### Verification
-- **Static Analysis**: `flutter analyze` passed with 0 issues.
-- **Automated Tests**: `flutter test` passed 15/15 unit and widget tests.
-- **Windows Compilation**: `flutter build windows --debug` and `flutter build windows --release` built successfully.
-- **Runtime Execution**: Launched and verified running process on Windows desktop with Impeller rendering engine.
-
-
+## Stronger notes, insights and summaries
+- **Meeting notes are descriptive and complete** (`MeetingDigest` v2): a 5-9 sentence overview; every topic with a summary of what was said about it in that meeting; decisions with rationale and a verbatim quote; action items with owner, due date and quote; open questions with context; risks; key facts (figures, dates, names). Quotes are checked against the transcript and dropped if not found (`DigestService.verifyEvidence`); the item stays.
+- **Long meetings are not trimmed.** Over 30,000 characters the transcript is split on line boundaries (22,000 per part, 1,500 overlap), each part is analysed in full detail, and a merge step combines them (same topic across parts = one topic; an earlier question answered later is removed). If the merge call fails the parts are merged in code. A failing part is skipped; all failing throws.
+- **Recall uses what was said.** A topic's per-meeting summary lives on the "discussed" link; live recall now includes it ("came up on 12 Oct: Forecast shows a 12% shortfall; ..."), and the Graph topic panel shows each meeting's account. Notes saved before this change still load.
+- **Live insights:** new system prompt (clear quality bar: specific, grounded, flags contradictions, no restating, max 3, `[]` when nothing helps), a longer recent window (4,500 chars, cut on a line boundary), and **running notes of the meeting so far**, refreshed in the background every ~2,500 characters that leave the window. That is what lets the AI catch an unanswered question from 40 minutes ago.
+- **Ask box** now gets the same context (running notes, earlier meetings, documents, speaker-labelled recent conversation) and must say so when the material does not contain the answer.
+- **Document summaries**: 6-10 specific sentences (purpose, sections, figures, terms) instead of 2-3; very long documents are summarised from start and end. Coaching also receives the meeting overview.
+- Cost: more Gemini calls (parts + merge for long meetings; a running-notes update about every 2,500 characters). All use gemini-2.5-flash; swapping `GeminiService` to a stronger model for the notes step is a one-line change if quality needs it.
+- Not verified: real model output quality on a long meeting.

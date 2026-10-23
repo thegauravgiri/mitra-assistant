@@ -62,8 +62,32 @@ Code under `lib/features/<feature>/` is split into:
 `lib/core/` holds cross-cutting pieces: `constants/app_constants.dart` (pref keys, platform
 channel names, defaults), `theme/`, `utils/logger.dart` (`AppLogger`, debug-only).
 
-Features: `audio`, `transcription`, `ai_engine`, `overlay`, `settings`. Follow this exact
+Features: `audio`, `transcription`, `ai_engine`, `overlay`, `settings`, `documents`, `history`, `coaching`, `meeting`, `meeting_graph`. Follow this exact
 structure for any new feature rather than introducing a different layout.
+
+### Window modes (Zen / Workspace)
+
+There is one native window. `ShellNotifier` (`overlay/providers/shell_providers.dart`) switches between Zen
+(live meeting), a compact pill, and the Workspace (wide, with navigation) by resizing it through
+`WindowControlService.applyShellMode`. Never open a second window: Riverpod state would not be shared and
+screen-capture protection is per native window. The meeting lifecycle lives in `MeetingNotifier`, not in widgets.
+
+### Document graph retrieval
+
+Uploaded documents are saved between launches (`documents/data/document_repository.dart`, a JSON file, not shared_preferences). The Graph page's "All" view (`meeting_graph/data/combined_graph_builder.dart`) draws meetings and documents together, linking entities to topics only on matching names; retrieval still uses each document's own graph.
+
+Uploaded documents get a `DocGraph` (entities/relations extracted by Gemini in the background,
+`documents/data/graph_extractor_service.dart`). `DocumentRelevanceService` boosts chunks linked to entities named
+in the transcript; documents without a ready graph fall back to keyword scoring.
+
+### Meeting digest, meeting graph and coaching
+
+Each saved meeting gets a `MeetingDigest` (topics, decisions, actions, open questions) from one Gemini call
+(`coaching/data/digest_service.dart`). The cross-meeting graph is a pure function of saved sessions
+(`meeting_graph/data/meeting_graph_builder.dart`) - never store it separately. Coaching is for the user, who picks
+which diarised speaker they are; Gemini quotes are verified against the transcript before display
+(`coaching_feedback_service.dart`). Metrics and thresholds live in `participation_analyzer.dart`,
+`indicator_evaluator.dart` and `AppConstants`.
 
 ### State management convention
 
@@ -94,8 +118,9 @@ native handlers in the same commit.
 ### External services
 
 - **Deepgram** (`transcription/data/deepgram_service.dart`): raw WebSocket connection
-  (`web_socket_channel`), not the SDK. Streams 16kHz linear16 audio chunks in, parses
-  `is_final`/`interim` transcript JSON out.
+  (`web_socket_channel`), not the SDK. Streams 16kHz linear16 **stereo** (left = mic, right = system
+  audio) with `multichannel=true`, so the user is always "You" and `diarize` only splits people on the
+  call channel. Parses `is_final`/`interim` JSON out; one entry per speaker run.
 - **Gemini** (`ai_engine/data/gemini_service.dart`): `google_generative_ai` package,
   `gemini-2.5-flash`, forced JSON response mode. Prompts live in `prompt_templates.dart`.
   Response parsing is defensive (strips markdown fences, falls back to regex-extracting a JSON

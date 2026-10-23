@@ -18,11 +18,11 @@ All submitted documents are authored as:
 - **Referencing style:** APA 7th edition
 
 The assignment has (at least) three graded assessments, submitted in sequence, each building on the last:
-1. **Assessment 1 — Project Charter** (already done, not produced in this branch — see `.docs/literature-review/Project Charter.docx.pdf`, used as source material).
-2. **Assessment 2 — Literature Review** (20%, Week 6 submission). Already completed. Output: `.docs/literature-review/final/literature-review-sneha.docx` (+ `.pdf`), built from `.docs/literature-review/final/literature-review-draft.md` via `build_clean_docx.py`. Declares **Level 2: AI-Assisted Editing** in its own Gen AI appendix.
-3. **Assessment 3 — Project Plan / Early-Stage Presentation** (15% report + 5% presentation, Week 8 submission). This is what most of the branch's work is about. Output: `.docs/project-plan/final/project-plan.docx` (+ source `.md`), built via `build_project_plan_docx.py`. A presentation deck also exists: `.docs/presentation.pptx` (+ a `.pdf` export for quick reading).
+1. **Assessment 1 — Project Charter** (already done, not produced in this branch — see `.docs/academic/charter/Project Charter.docx.pdf`, used as source material).
+2. **Assessment 2 — Literature Review** (20%, Week 6 submission). Already completed. Output: `.docs/academic/literature-review/final/literature-review-sneha.docx` (+ `.pdf`), built from `.docs/academic/literature-review/final/literature-review-draft.md` via `build_clean_docx.py`. Declares **Level 2: AI-Assisted Editing** in its own Gen AI appendix.
+3. **Assessment 3 — Project Plan / Early-Stage Presentation** (15% report + 5% presentation, Week 8 submission). This is what most of the branch's work is about. Output: `.docs/academic/project-plan/final/project-plan.docx` (+ source `.md`), built via `build_project_plan_docx.py`. A presentation deck also exists: `.docs/academic/presentation/presentation.pptx` (+ a `.pdf` export for quick reading).
 
-A fourth artifact, **`.docs/question_answer.md`**, is not a graded deliverable — it's defence-prep Q&A for the oral presentation/viva, written in first person for the student to rehearse with.
+A fourth artifact, **`.docs/academic/viva/question_answer.md`**, is not a graded deliverable — it's defence-prep Q&A for the oral presentation/viva, written in first person for the student to rehearse with.
 
 ## Narrative timeline used across the documents (don't contradict this)
 
@@ -47,13 +47,13 @@ The project charter/plan originally framed Windows as **future work** ("macOS fi
 Root `CLAUDE.md` has already been updated upstream to describe the app as supporting **both macOS and Windows** natively.
 
 **This directly affects academic documents that still say "macOS only" or "Windows planned for later":**
-- `.docs/project-plan/final/project-plan.docx` — describes Windows as not-yet-started, future Week 9 work.
-- `.docs/question_answer.md` — several answers (e.g. about scope, architecture, "what's next") frame Windows as unbuilt.
-- `.docs/presentation.pptx` — multiple slides say "macOS desktop overlay" / "A demonstrable macOS prototype," and the 12-week delivery table has no Windows-port line item at all. A detailed refinement prompt was already written for this (see "Presentation review" below) and **may or may not have been applied yet** — check the current `.docs/presentation.pptx` content before assuming it's fixed.
+- `.docs/academic/project-plan/final/project-plan.docx` — describes Windows as not-yet-started, future Week 9 work.
+- `.docs/academic/viva/question_answer.md` — several answers (e.g. about scope, architecture, "what's next") frame Windows as unbuilt.
+- `.docs/academic/presentation/presentation.pptx` — multiple slides say "macOS desktop overlay" / "A demonstrable macOS prototype," and the 12-week delivery table has no Windows-port line item at all. A detailed refinement prompt was already written for this (see "Presentation review" below) and **may or may not have been applied yet** — check the current `.docs/academic/presentation/presentation.pptx` content before assuming it's fixed.
 
 **If asked to update these documents next, the honest framing is no longer "Windows is planned" but "Windows support was delivered" — figure out which week that actually landed in relative to the charter's 16/08/2026 start date, and update the timeline/status language accordingly** rather than just swapping "planned" for "done" everywhere blindly.
 
-## Presentation review (`.docs/presentation.pptx`) — status as of last session
+## Presentation review (`.docs/academic/presentation/presentation.pptx`) — status as of last session
 
 The 13-slide deck was reviewed slide-by-slide (converted to PDF with `soffice --headless --convert-to pdf` to read it, since there's no direct pptx viewer). Findings, in case they still need fixing:
 - Slide 13 said "A demonstrable **macOS** prototype" as the final deliverable — contradicts the charter's acceptance criteria (both macOS and Windows).
@@ -65,8 +65,8 @@ The 13-slide deck was reviewed slide-by-slide (converted to PDF with `soffice --
 ## How the `.docx` files are built (so you can regenerate them after edits)
 
 Both Word documents are generated from Markdown by bespoke Python scripts at the repo root (python-pptx/python-docx aren't installed system-wide — there's no system `pip`; a venv was created ad hoc in the scratchpad directory each session: `python3 -m venv <scratchpad>/venv && source <venv>/bin/activate && pip install python-docx`):
-- `build_clean_docx.py` → reads `.docs/literature-review/final/literature-review-draft.md` → writes `.docs/literature-review/final/literature-review-sneha.docx`.
-- `build_project_plan_docx.py` → reads `.docs/project-plan/final/project-plan-draft.md` → writes `.docs/project-plan/final/project-plan.docx`.
+- `build_clean_docx.py` → reads `.docs/academic/literature-review/final/literature-review-draft.md` → writes `.docs/academic/literature-review/final/literature-review-sneha.docx`.
+- `build_project_plan_docx.py` → reads `.docs/academic/project-plan/final/project-plan-draft.md` → writes `.docs/academic/project-plan/final/project-plan.docx`.
 - `build_academic_docx.py` is an earlier/alternate version of the literature-review builder — kept for reference, not actively used.
 - Both scripts share the same visual style: Calibri body, navy (`#1E3A8A`) headings, teal (`#0F766E`) subheadings, a two-column metadata table under the title, page header reading "ITNET312A Major Individual Project | <Assessment Name>", footer "Sneha Neupane (900008705) • TAFE NSW Higher Education". **If you add a third document, match this style rather than inventing a new one.**
 - **Known gotcha already fixed once:** the markdown-to-docx parsing loop must flush any pending table *before* processing the next heading line, not only before the next plain-text line — otherwise consecutive tables under back-to-back headings silently merge into one garbled table. Both current scripts handle this correctly; preserve that ordering if you touch the parsing loop.
@@ -81,6 +81,6 @@ Both Word documents are generated from Markdown by bespoke Python scripts at the
 
 ## Suggested next steps (if the user doesn't say otherwise)
 
-1. Re-check whether `.docs/presentation.pptx` still needs the macOS/Windows fixes described above, and whether it needs *further* updating now that Windows is actually built (not just scoped).
-2. Re-check `.docs/project-plan/final/project-plan-draft.md` and `.docs/question_answer.md` for the same now-outdated "Windows is future work" framing, and update both the status language and the current week number against the 16/08/2026 start date.
+1. Re-check whether `.docs/academic/presentation/presentation.pptx` still needs the macOS/Windows fixes described above, and whether it needs *further* updating now that Windows is actually built (not just scoped).
+2. Re-check `.docs/academic/project-plan/final/project-plan-draft.md` and `.docs/academic/viva/question_answer.md` for the same now-outdated "Windows is future work" framing, and update both the status language and the current week number against the 16/08/2026 start date.
 3. Re-verify the diarisation status (caveat #1 above) against the current `deepgram_service.dart` before repeating that caveat as still-true.

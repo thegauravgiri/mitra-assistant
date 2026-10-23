@@ -36,4 +36,26 @@ This directory serves as the **shared artifact repository and communication brid
 | **[.docs/implementation_plan.md](implementation_plan.md)** | Claude Opus | Architectural design, file modification plan, risk assessment, open questions. |
 | **[.docs/task.md](task.md)** | Claude Opus / Gemini | Task checklist (`[ ]`, `[/]`, `[x]`) to track implementation progress. |
 | **[.docs/walkthrough.md](walkthrough.md)** | Gemini | Post-implementation execution summary, verification test output, and screenshots/notes. |
-| **[.docs/architecture.md](architecture.md)** | Claude Opus / Gemini | Deep-dive technical specifications or system design docs (when applicable). |
+
+---
+
+## 🎓 Academic Coursework Artifacts (branch `academic-coursework`)
+
+Separate from the engineering workflow above. Start with [memory.md](memory.md) for full context (persona, timeline, honesty decisions, Windows-support update).
+
+```
+.docs/
+├── README.md, implementation_plan.md, task.md, walkthrough.md   # engineering workflow
+├── memory.md                                                    # academic session handoff
+└── academic/
+    ├── charter/             # Assessment 1 — PROJECT_CHARTER.md, .docx, .pdf
+    ├── literature-review/   # Assessment 2
+    │   ├── final/           #   draft .md, .docx/.pdf, references.md, figures/
+    │   ├── extracted/       #   text extracted from brief, charter, senior example
+    │   └── sources/         #   brief & example PDFs
+    ├── project-plan/        # Assessment 3
+    │   ├── final/           #   project-plan-draft.md, project-plan.docx
+    │   └── sources/         #   brief & example PDFs
+    ├── presentation/        # presentation.pptx
+    └── viva/                # question_answer.md (defence prep, not graded)
+```
