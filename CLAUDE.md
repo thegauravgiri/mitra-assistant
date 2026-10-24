@@ -62,7 +62,7 @@ Code under `lib/features/<feature>/` is split into:
 `lib/core/` holds cross-cutting pieces: `constants/app_constants.dart` (pref keys, platform
 channel names, defaults), `theme/`, `utils/logger.dart` (`AppLogger`, debug-only).
 
-Features: `audio`, `transcription`, `ai_engine`, `overlay`, `settings`, `documents`, `history`, `coaching`, `meeting`, `meeting_graph`. Follow this exact
+Features: `audio`, `transcription`, `ai_engine`, `overlay`, `settings`, `documents`, `history`, `coaching`, `meeting`, `meeting_graph`, `repos`. Follow this exact
 structure for any new feature rather than introducing a different layout.
 
 ### Window modes (Zen / Workspace)
@@ -79,6 +79,15 @@ Uploaded documents are saved between launches (`documents/data/document_reposito
 Uploaded documents get a `DocGraph` (entities/relations extracted by Gemini in the background,
 `documents/data/graph_extractor_service.dart`). `DocumentRelevanceService` boosts chunks linked to entities named
 in the transcript; documents without a ready graph fall back to keyword scoring.
+
+### Connected repositories (`repos`)
+
+Local repo folders are scanned (`repo_scanner.dart`: skips secrets, dependencies, build output, hidden folders), split into
+chunks (`code_chunker.dart`), and held in an in-memory BM25 index (`bm25_index.dart`) that tokenises identifiers and uses light
+synonyms. A lookup (`RepoNotifier.contextFor`) is synchronous and takes about a millisecond: it must never call the network.
+Optional plain-English notes + ready-made scenario answers are written once by Gemini (`repo_summarizer.dart`). During a call,
+`AiNotifier` watches for a question from someone other than "You" (`QuestionDetector`), shows any prepared answer instantly
+(`InstantAnswer`), and passes the retrieved excerpts to the next analysis as "Project knowledge" with `[repo/path:lines]` citations.
 
 ### Meeting digest, meeting graph and coaching
 
