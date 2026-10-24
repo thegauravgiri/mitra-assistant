@@ -7,6 +7,7 @@ import 'package:mitra_assistant/core/constants/app_constants.dart';
 import 'package:mitra_assistant/core/theme/app_theme.dart';
 import 'package:mitra_assistant/features/documents/providers/document_providers.dart';
 import 'package:mitra_assistant/features/overlay/presentation/workspace_shell.dart';
+import 'package:mitra_assistant/features/repos/providers/repo_providers.dart';
 import 'package:mitra_assistant/features/overlay/providers/shell_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../tool/preview/preview_data.dart';
@@ -46,6 +47,7 @@ void main() {
           ProviderScope(
             overrides: [
               documentNotifierProvider.overrideWith((ref) => _Docs(ref)),
+              repoNotifierProvider.overrideWith((ref) => RepoNotifier(ref, persist: false)),
               shellNotifierProvider.overrideWith((ref) => _Shell(page)),
             ],
             child: MaterialApp(theme: AppTheme.darkTheme, home: const Scaffold(body: WorkspaceShell())),

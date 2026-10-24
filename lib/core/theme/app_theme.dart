@@ -37,6 +37,13 @@ class AppTheme {
         surface: cardBackground,
         error: panicAccent,
       ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((s) => s.contains(WidgetState.selected) ? Colors.white : textMuted),
+        trackColor: WidgetStateProperty.resolveWith(
+          (s) => s.contains(WidgetState.selected) ? primaryAccent : borderSubtle,
+        ),
+        trackOutlineColor: const WidgetStatePropertyAll(Colors.transparent),
+      ),
       chipTheme: ChipThemeData(
         backgroundColor: Colors.transparent,
         selectedColor: primaryAccent.withValues(alpha: 0.22),

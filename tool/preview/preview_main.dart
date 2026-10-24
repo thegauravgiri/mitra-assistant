@@ -13,6 +13,7 @@ import 'package:mitra_assistant/features/documents/providers/document_providers.
 import 'package:mitra_assistant/features/overlay/data/window_control_service.dart';
 import 'package:mitra_assistant/features/overlay/presentation/workspace_shell.dart';
 import 'package:mitra_assistant/features/overlay/providers/shell_providers.dart';
+import 'package:mitra_assistant/features/repos/providers/repo_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'preview_data.dart';
 
@@ -37,7 +38,10 @@ void main() async {
 
   runApp(
     ProviderScope(
-      overrides: [documentNotifierProvider.overrideWith((ref) => _SeededDocs(ref))],
+      overrides: [
+        documentNotifierProvider.overrideWith((ref) => _SeededDocs(ref)),
+        repoNotifierProvider.overrideWith((ref) => RepoNotifier(ref, persist: false)),
+      ],
       child: const _Boot(),
     ),
   );
@@ -60,6 +64,9 @@ class _BootState extends ConsumerState<_Boot> {
       final page = WorkspacePage.values.firstWhere((p) => p.name == _page.split('-').first, orElse: () => WorkspacePage.meeting);
       await ref.read(shellNotifierProvider.notifier).openWorkspace(page: page);
       await WindowControlService.instance.disableScreenProtection(); // resize re-enables it
+      if (_page.startsWith('repos')) {
+        await ref.read(repoNotifierProvider.notifier).addRepo(Platform.environment['REPO'] ?? Directory.current.path);
+      }
     });
   }
 

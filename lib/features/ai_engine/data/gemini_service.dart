@@ -121,6 +121,7 @@ class GeminiService {
     String documentContext = '',
     String earlierMeetings = '',
     String meetingSoFar = '',
+    String repoContext = '',
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Gemini API key missing in Settings');
@@ -136,6 +137,7 @@ class GeminiService {
         documentContext: documentContext,
         earlierMeetings: earlierMeetings,
         meetingSoFar: meetingSoFar,
+        repoContext: repoContext,
       );
       final response = await _model?.generateContent([Content.text(prompt)]);
       final text = response?.text;
@@ -165,6 +167,7 @@ class GeminiService {
     String documentContext = '',
     String earlierMeetings = '',
     String meetingSoFar = '',
+    String repoContext = '',
   }) async {
     if (apiKey.trim().isEmpty) {
       throw Exception('Gemini API key missing in Settings');
@@ -180,6 +183,7 @@ class GeminiService {
         documentContext: documentContext,
         earlierMeetings: earlierMeetings,
         meetingSoFar: meetingSoFar,
+        repoContext: repoContext,
       );
       final response = await _model?.generateContent([Content.text(prompt)]);
       final text = response?.text;

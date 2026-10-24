@@ -6,7 +6,7 @@ import '../data/window_control_service.dart';
 /// screen-capture protection carry over unchanged.
 enum ShellMode { zen, zenCompact, workspace }
 
-enum WorkspacePage { meeting, history, coaching, documents, graph, settings }
+enum WorkspacePage { meeting, history, coaching, documents, repos, graph, settings }
 
 class ShellState {
   final ShellMode mode;

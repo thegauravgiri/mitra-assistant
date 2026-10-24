@@ -2,7 +2,9 @@ class PromptTemplates {
   static const String systemPrompt = '''
 You are Mitra, a real-time meeting co-pilot sitting beside the user during a live call. In the transcript the user is "You"; other labels ("Speaker 2", ...) are the other people. Help the user right now: only surface what is useful at this moment, and write every insight FOR the user.
 
-You receive, when available: running notes of the meeting so far, the most recent conversation, reference documents, and notes from earlier meetings with the same topics. Use all of them; the running notes are how you know what was said before the recent window.
+You receive, when available: running notes of the meeting so far, the most recent conversation, reference documents, notes from earlier meetings with the same topics, and PROJECT KNOWLEDGE: excerpts of the user's own source code and tests, with plain-English notes, from the repositories they are demoing. Use all of them; the running notes are how you know what was said before the recent window.
+
+PROJECT KNOWLEDGE rules: when someone asks how the product behaves or what happens in a scenario, answer with category "answer" from the project knowledge. Make the description something the user can SAY to a client in one or two plain sentences (no class names or jargon), then cite where it comes from in brackets, e.g. [billing-service/lib/retry.dart:12-48]. A test whose name describes the scenario is strong evidence. If the project knowledge does not actually show the answer, say so briefly and name what to check; never guess about the product's behaviour.
 
 Output a valid JSON array. Each insight MUST be exactly:
 {"category": "suggestion" | "keyPoint" | "question" | "actionItem" | "answer" | "unansweredQuestion", "title": "3-7 words", "description": "1-2 sentences, lead with the point"}
@@ -30,7 +32,19 @@ Respond ONLY with the JSON array.
     String documentContext = '',
     String earlierMeetings = '',
     String meetingSoFar = '',
+    String repoContext = '',
   }) {
+    final repoBlock = repoContext.trim().isEmpty
+        ? ''
+        : '''
+
+Project knowledge (the user's own repositories; cite as [repo/path:lines]):
+---
+$repoContext
+---
+Someone may be asking how the product behaves. If so, answer from this and cite it.
+''';
+
     final soFarBlock = meetingSoFar.trim().isEmpty
         ? ''
         : '''
@@ -75,7 +89,7 @@ Recent conversation (speaker-labelled, newest last):
 ---
 $recentTranscript
 ---
-$soFarBlock$recallBlock$docBlock$existingBlock
+$soFarBlock$recallBlock$repoBlock$docBlock$existingBlock
 Decide what would genuinely help the user at this exact moment, using the recent conversation together with everything above. If a question was asked in the recent conversation, answer it from the material when you can. If a question from earlier is still unanswered, flag it.
 Return only NEW, specific insights, or [] when there is nothing clearly worth saying.
 ''';
@@ -87,11 +101,12 @@ Return only NEW, specific insights, or [] when there is nothing clearly worth sa
     String documentContext = '',
     String earlierMeetings = '',
     String meetingSoFar = '',
+    String repoContext = '',
   }) {
     String block(String title, String body) => body.trim().isEmpty ? '' : '\n$title:\n---\n$body\n---\n';
 
     return '''
-${block('Meeting so far (running notes)', meetingSoFar)}${block('Recent conversation (speaker-labelled)', recentTranscript.isEmpty ? '(No meeting transcript captured yet)' : recentTranscript)}${block('Earlier meetings (from the user\'s history)', earlierMeetings)}${block('Reference documents', documentContext)}
+${block('Meeting so far (running notes)', meetingSoFar)}${block('Recent conversation (speaker-labelled)', recentTranscript.isEmpty ? '(No meeting transcript captured yet)' : recentTranscript)}${block('Earlier meetings (from the user\'s history)', earlierMeetings)}${block('Project knowledge (the user\'s repositories; cite as [repo/path:lines])', repoContext)}${block('Reference documents', documentContext)}
 The user asks you directly: "$userQuestion"
 
 Answer it using the meeting notes, the conversation, earlier meetings and documents. Be specific and cite where the answer comes from. If the material does not contain the answer, say so plainly in one insight and suggest how the user could find out; never guess.
@@ -274,4 +289,28 @@ $transcript
 
 Write the coaching JSON for $name.
 ''';
+
+  /// Plain-English notes about source files, for a presenter who has to answer
+  /// client questions about how the product behaves without reading code.
+  static const String repoNotesSystemPrompt = '''
+You document source code for a presenter who must answer a client's "what happens if...?" questions about how the product behaves, without reading code.
+For EACH file given, write notes in plain, non-technical language. Respond ONLY with a JSON object:
+{"files":[{"path":"exactly as given","summary":"2-4 sentences: what this file is responsible for, in business terms","behaviours":["what happens in a specific situation, including errors, edge cases, limits, retries, defaults and timeouts"],"scenarios":[{"question":"a question a client might ask, in their words","answer":"1-2 sentences the presenter can say aloud"}]}]}
+Rules:
+- Only what the code actually shows. If something is unclear or depends on other files, say so; never guess.
+- Quote numbers exactly (timeouts, limits, retry counts, defaults).
+- At most 6 behaviours and 3 scenarios per file; skip scenarios for trivial files.
+- Write for a client conversation: no class names or jargon in the answers.
+''';
+
+  static String buildRepoNotesPrompt(String repoName, List<(String path, String text)> files) {
+    final body = [for (final f in files) '=== FILE: ${f.$1} ===\n${f.$2}'].join('\n\n');
+    return '''
+Repository: $repoName
+
+$body
+
+Write the JSON notes for every file above.
+''';
+  }
 }

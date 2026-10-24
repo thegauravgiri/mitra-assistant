@@ -8,6 +8,7 @@ import '../../coaching/presentation/progress_dialog.dart';
 import '../../documents/presentation/documents_page.dart';
 import '../../documents/presentation/graph_view.dart';
 import '../../history/presentation/history_view.dart';
+import '../../repos/presentation/repos_page.dart';
 import '../../history/providers/history_providers.dart';
 import '../../settings/presentation/settings_view.dart';
 import '../../transcription/presentation/transcript_view.dart';
@@ -23,6 +24,7 @@ const _navItems = <(WorkspacePage, IconData, String)>[
   (WorkspacePage.history, Icons.history_rounded, 'History'),
   (WorkspacePage.coaching, Icons.insights_rounded, 'Coaching'),
   (WorkspacePage.documents, Icons.description_rounded, 'Documents'),
+  (WorkspacePage.repos, Icons.source_rounded, 'Repos'),
   (WorkspacePage.graph, Icons.hub_rounded, 'Graph'),
   (WorkspacePage.settings, Icons.tune_rounded, 'Settings'),
 ];
@@ -104,6 +106,8 @@ class WorkspaceShell extends ConsumerWidget {
         return DocumentsPage(
           onOpenGraph: () => notifier.selectPage(WorkspacePage.graph),
         );
+      case WorkspacePage.repos:
+        return const ReposPage();
       case WorkspacePage.graph:
         return const GraphView();
       case WorkspacePage.settings:

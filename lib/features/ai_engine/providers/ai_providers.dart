@@ -8,6 +8,10 @@ import '../../meeting_graph/data/meeting_recall_service.dart';
 import '../../meeting_graph/providers/meeting_graph_providers.dart';
 import '../data/gemini_service.dart';
 import '../data/transcript_window.dart';
+import '../../repos/data/instant_answer.dart';
+import '../../repos/data/question_detector.dart';
+import '../../repos/providers/repo_providers.dart';
+import '../../transcription/domain/models/transcript_entry.dart';
 import '../domain/models/insight.dart';
 import '../../transcription/providers/transcription_providers.dart';
 import '../../settings/providers/settings_providers.dart';
@@ -50,10 +54,25 @@ class AiNotifier extends StateNotifier<AiState> {
   int _summarisedUpTo = 0;
   bool _summarising = false;
 
+  // Repository questions: answered in milliseconds from the local index when a
+  // client asks how the product behaves, then polished by the model.
+  ProviderSubscription<TranscriptionState>? _transcriptSub;
+  Timer? _questionTimer;
+  bool _inFlight = false;
+  bool _rerun = false;
+  final Set<String> _handledQuestions = {};
+  static const Duration _questionDelay = Duration(milliseconds: 1200);
+
   AiNotifier(this._ref) : super(AiState(insights: []));
 
   void startPeriodicAnalysis() {
     _analysisTimer?.cancel();
+    _transcriptSub?.close();
+    // react the moment a new line arrives, not only on the timer
+    _transcriptSub = _ref.listen<TranscriptionState>(transcriptionNotifierProvider, (prev, next) {
+      final from = prev?.entries.length ?? 0;
+      if (next.entries.length > from) _onNewEntries(next.entries, from);
+    });
     final interval = _ref.read(settingsNotifierProvider).analysisIntervalSec;
 
     // Run first check immediately, then periodically
@@ -64,7 +83,28 @@ class AiNotifier extends StateNotifier<AiState> {
     });
   }
 
+  /// Runs one analysis. If one is already running, the request is remembered
+  /// and runs once the current one finishes, so a client's question asked
+  /// mid-call is never dropped and calls never overlap.
   Future<void> analyzeCurrentTranscript({bool force = false}) async {
+    if (_inFlight) {
+      if (force) _rerun = true;
+      return;
+    }
+    _inFlight = true;
+    try {
+      await _runAnalysis(force: force);
+    } finally {
+      _inFlight = false;
+      if (_rerun && mounted) {
+        _rerun = false;
+        // ignore: unawaited_futures
+        analyzeCurrentTranscript(force: true);
+      }
+    }
+  }
+
+  Future<void> _runAnalysis({bool force = false}) async {
     final apiKey = _ref.read(settingsNotifierProvider).geminiApiKey;
     if (apiKey.trim().isEmpty) {
       state = state.copyWith(
@@ -120,6 +160,10 @@ class AiNotifier extends StateNotifier<AiState> {
         ? null
         : transcriptState.entries.last.timestamp;
 
+    // Project knowledge, only while a client's question about the product is
+    // recent (or when the user forces an analysis): not on every cycle.
+    final repoContextText = _repoContextForAnalysis(transcriptState.entries, force: force);
+
     try {
       final existingTitles = state.insights.map((i) => i.title).take(15).toList();
       final newInsights = await _geminiService.analyzeTranscript(
@@ -132,6 +176,7 @@ class AiNotifier extends StateNotifier<AiState> {
           _ref.read(meetingGraphProvider),
         ),
         meetingSoFar: _meetingSummary,
+        repoContext: repoContextText,
       );
 
       // Client-side multi-pass semantic deduplication fallback
@@ -254,6 +299,7 @@ class AiNotifier extends StateNotifier<AiState> {
           _ref.read(meetingGraphProvider),
         ),
         meetingSoFar: _meetingSummary,
+        repoContext: _ref.read(repoNotifierProvider.notifier).contextFor('$recent $question').text,
       );
 
       final uniqueInsights = newInsights
@@ -285,6 +331,10 @@ class AiNotifier extends StateNotifier<AiState> {
   void stopPeriodicAnalysis() {
     _analysisTimer?.cancel();
     _analysisTimer = null;
+    _questionTimer?.cancel();
+    _questionTimer = null;
+    _transcriptSub?.close();
+    _transcriptSub = null;
   }
 
   String _recentWindow(String fullText) => TranscriptWindow.recent(fullText, _maxTranscriptCharLength);
@@ -316,11 +366,54 @@ class AiNotifier extends StateNotifier<AiState> {
     }).whenComplete(() => _summarising = false);
   }
 
+  /// A client just asked how the product behaves: search the repositories now
+  /// (milliseconds), show any answer that needs no AI, and ask the model for a
+  /// polished answer a moment later.
+  void _onNewEntries(List<TranscriptEntry> entries, int from) {
+    final repos = _ref.read(repoNotifierProvider.notifier);
+    if (!repos.hasEnabledRepos) return;
+    for (var i = from; i < entries.length; i++) {
+      final e = entries[i];
+      if (!e.isFinal || e.speaker == 'You' || !QuestionDetector.isScenarioQuestion(e.text)) continue;
+      if (!_handledQuestions.add(e.id)) continue;
+
+      final ctx = repos.contextFor(InstantAnswer.queryFor(entries, e));
+      if (ctx.isEmpty) continue;
+
+      final instant = InstantAnswer.build(ctx);
+      if (instant != null && !_isDuplicate(instant, state.insights)) {
+        var list = [instant, ...state.insights];
+        if (list.length > _maxInsightsCount) list = list.sublist(0, _maxInsightsCount);
+        state = state.copyWith(insights: list);
+      }
+
+      _questionTimer?.cancel();
+      _questionTimer = Timer(_questionDelay, () {
+        if (mounted) analyzeCurrentTranscript(force: true);
+      });
+    }
+  }
+
+  /// Project knowledge for the analysis prompt: the most recent question from
+  /// someone else, searched in the repositories. Empty when there is none.
+  String _repoContextForAnalysis(List<TranscriptEntry> entries, {required bool force}) {
+    final repos = _ref.read(repoNotifierProvider.notifier);
+    if (!repos.hasEnabledRepos) return '';
+    final q = QuestionDetector.latest(entries, lastN: 4);
+    if (q != null) return repos.contextFor(InstantAnswer.queryFor(entries, q)).text;
+    if (force && entries.isNotEmpty) {
+      final recent = entries.length > 3 ? entries.sublist(entries.length - 3) : entries;
+      return repos.contextFor(recent.map((e) => e.text).join(' ')).text;
+    }
+    return '';
+  }
+
   void clearInsights() {
     _lastAnalyzedTranscript = '';
     _lastActiveDocSignature = '';
     _meetingSummary = '';
     _summarisedUpTo = 0;
+    _handledQuestions.clear();
     state = AiState(insights: [], error: null);
   }
 
@@ -330,6 +423,8 @@ class AiNotifier extends StateNotifier<AiState> {
 
   @override
   void dispose() {
+    _questionTimer?.cancel();
+    _transcriptSub?.close();
     _analysisTimer?.cancel();
     super.dispose();
   }
